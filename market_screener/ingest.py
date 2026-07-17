@@ -19,6 +19,7 @@ from scoring.fundamentals import FINVIZ_PE_KEY, fetch_finviz_pe
 from scoring.news import fetch_news
 from snapshot import Snapshot
 from sources import seed_universe
+from sources.stocktwits import fetch_stocktwits_sentiment
 from sources.yahoo import fetch_wikipedia_index
 
 # Only Close and Volume are stored. No scorer reads Open/High/Low, and dropping them keeps a
@@ -163,6 +164,13 @@ def ingest(cfg: Config, run_ts: str) -> Snapshot:
     news_raw = _map(_news, newsworthy, cfg.max_workers, "News fetch")
     news = {t: (v or []) for t, v in news_raw.items()}
 
+    # StockTwits stream sentiment for the liquid candidates, in confirmation-rank order so the
+    # rate-limit budget spends on the most-corroborated names. Sequential + throttled, not
+    # threaded: the ~200/hr cap is per-IP, so concurrency would only reach it faster.
+    print(f"\n[INFO] Fetching StockTwits stream sentiment "
+          f"(budget {cfg.stocktwits_stream_budget}, {len(newsworthy)} candidates)...")
+    st_sentiment = fetch_stocktwits_sentiment(cfg, newsworthy)
+
     # Resolve the finviz P/E fallback here so score_fundamentals stays offline.
     missing_pe = [t for t in newsworthy if info[t].get("trailingPE") is None]
     if missing_pe:
@@ -183,6 +191,7 @@ def ingest(cfg: Config, run_ts: str) -> Snapshot:
         reddit_counts=seed.reddit_counts,
         reddit_posts=seed.reddit_posts,
         st_ranks=seed.st_ranks,
+        st_sentiment=st_sentiment,
         capitol=seed.capitol_trades,
         meta={
             "market_open_at_ingest": market_open,
@@ -192,5 +201,7 @@ def ingest(cfg: Config, run_ts: str) -> Snapshot:
             "news_fetched_for": sorted(news),
             "benchmark": cfg.benchmark,
             "reference_universe": ref_tickers,
+            "stocktwits_stream_budget": cfg.stocktwits_stream_budget,
+            "stocktwits_sentiment_coverage": len(st_sentiment),
         },
     )

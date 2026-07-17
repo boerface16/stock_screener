@@ -2,6 +2,147 @@
 
 Completed work. One compact block per task/phase: outcome + headline metric + key files.
 
+## Tracking tab — paper-trade the picks per metric, track forward returns (2026-07-17)
+
+**Outcome:** New 5th dashboard tab that answers "which metric leads to the best returns." Each
+date-stamped CSV becomes a frozen **cohort**: its top picks per metric are bought at the CSV's
+`price_usd` (~$1000 each, whole shares, min 1 for >$1000 names) and held forever — cohort
+buy-and-hold, no selling. 10 buckets: composite (top 10) + value/quality/growth/gold_score/
+max_drawdown/volatility/news/social/capitol_hill (top 3 each). Grilled first (grill-me): every
+load-bearing branch locked before coding.
+
+**Design locked (grill 2026-07-17):** cohort buy-and-hold; ledger **derived from CSVs**, not
+persisted; entry = CSV `price_usd`, current/history = **yfinance adjusted closes, cached**; equal-
+weight avg % return; ranked by **fixed-horizon excess-vs-SPY** (1/3/6/12mo), with a live mark-to-
+market view alongside; per-bucket deep-dive **reuses the quantstats tearsheet** (bucket = synthetic
+strategy → NAV → `build_html`, so quantstats still gets returns, not prices — Gotcha 10 respected).
+
+**Verified:** `AppTest` full-script run **0 exceptions**, Tracking leaderboard renders sorted
+(Social +2.07% → Capitol Hill −1.37% on the one 2026-07-16 cohort). Live P/L **hand-checked**: EFC
+72 sh, entry $13.70, close $13.485 → −$15.48 / −1.57%, matches to the cent. Only one CSV exists on
+disk, so horizons are all still empty (cohort is 1 day old — correct, not a bug).
+
+**In-app run now writes a CSV.** The "Run screener for today" button ran `screener.py
+--ingest-only`, which snapshots but returns before scoring/CSV — so an in-app run never produced a
+cohort. Changed `dashboard/runner.py` to spawn a **full** `screener.py` run (ingest + score + write
+CSV), so every in-app run drops a dated CSV under `outputs_TA/` that the Tracking tab picks up.
+Captions/toasts in `app.py` updated (~4–5 min now, since scoring is included).
+
+**Key files:** `tracking/cohorts.py` (CSV→cohorts, pure), `tracking/prices.py` (yfinance cache),
+`tracking/returns.py` (live / fixed-horizon / synthetic-strategy), `dashboard/views/tracking.py`
+(leaderboard + equity curves + drill-down), `dashboard/runner.py` (full run, not `--ingest-only`),
+`dashboard/app.py` (5th tab wired + captions), `config.py` (`tracking_*` knobs), `.gitignore`
+(price_cache), `PROJECT_MAP.md` (tracking/ block). Full design in `tasks/todo.md` archived section.
+
+## social_sentiment via StockTwits streams + 3 dashboard UX changes (2026-07-17)
+
+**Outcome:** `social_sentiment` was populated for **6/396 (1.5%)** of the pool. Traced it (not a
+bug): it rode on Reddit *titles*, and only 41/396 tickers appear in any Reddit title, of which only
+6 contain a lexicon word. Replaced the source with StockTwits message-stream **Bull/Bear labels**
+(poster-set, so counted not lexicon-scored). Coverage **6 → 186/396 (47%)**. Plus three dashboard
+UX changes.
+
+**Headline metrics:**
+- `social_sentiment` non-None: **6 → 186** (47% of the scored pool), real values (MU 7.1, TSM 7.9).
+- StockTwits stream coverage: **186/200 labeled** in the run (9 transient 503s, budget 200).
+- **Determinism gate re-baselined on the v4 snapshot:** two replays of `20260717_135916`
+  byte-identical (**16,145 bytes**). (Old 16,095/EFC-7.8847 baseline is retired — the composite
+  moved because social now has real coverage; that's expected, not drift.)
+
+**Social items (S):**
+- `sources/stocktwits.py` `fetch_stocktwits_sentiment(cfg, tickers)` — streams `entities.sentiment.
+  basic` → `{ticker: {bull, bear}}`, budgeted (`stocktwits_stream_budget=200`, confirmation-rank
+  order so the budget spends on the most-corroborated names), throttled (`stocktwits_stream_delay`),
+  stops on 429. Wired into `ingest.py` after the news gate.
+- `snapshot.py` **SCHEMA_VERSION 3→4**: `st_sentiment` persisted in `stocktwits.json`
+  (`{ranks, sentiment}`). `dashboard/data.list_runs` now hides schema-incompatible runs so the
+  picker can't load a stale one.
+- `scoring/sentiment.py` `score_from_counts(pos, neg, k)` (shrinkage from explicit counts;
+  `sentiment_score` reuses it). `scoring/scorer.py`: social = labels; **Reddit-title lexicon path
+  deleted** (resolves the weak `title.split()` matcher by removal). Reddit → buzz only.
+- Resolves todo 2.6b/2.8b/2.8c: the label IS the signal, so there's no lexicon to validate.
+
+**Dashboard UX items (U):**
+- **U.0** Extracted the tearsheet block into `tearsheet.render_tearsheet(snap, cfg, ticker, run_ts,
+  key_prefix)` — one impl, used by both the Ticker tab and the new rankings click.
+- **U.1** Rankings `st.dataframe` is now `single-row` selectable; clicking a symbol renders its
+  tearsheet underneath. `table.render(kept, dropped, snap, cfg, run_ts)`. Selection parsing handles
+  both event shapes (verified) and maps `view.iloc[row]["ticker"]`.
+- **U.2** `strategy_title=ticker` passed to `qs.reports.html` — verified the built report labels the
+  column `MU` and the word "Strategy" is **absent** from the 698 KB output.
+- **U.3** Ticker detail has a `st.text_input` search that substring-filters the list (verified:
+  "MU" → MU/MUFG/MUR/TMUS). Empty = full list.
+
+**Verified:** AppTest 0 exceptions across all 4 tabs on the v4 snapshot; picker shows v4 only; search
++ report-label + selection-mapping all exercised.
+
+**Key files:** `sources/stocktwits.py`, `ingest.py`, `snapshot.py`, `config.py`,
+`scoring/sentiment.py`, `scoring/scorer.py`, `dashboard/{data,tearsheet}.py`,
+`dashboard/views/{table,ticker}.py`. `PROJECT_MAP.md` updated (schema v4, stocktwits row, social
+coverage, list_runs filter).
+
+## Dashboard — run the screener for today, from the app (2026-07-17)
+
+**Outcome:** a **Run screener for today** button in the sidebar fetches today's market data and
+writes a new snapshot, which the picker then loads and scores live — no terminal needed.
+
+**How:** `dashboard/runner.py` launches `python screener.py --ingest-only` as a **subprocess**
+(the real CLI ingest, so the app can't drift from what the screener writes), cwd pinned to
+`market_screener/`. Chosen over an in-process `ingest()` call because ingest is a multi-minute
+network phase driving crawl4ai (asyncio) + a thread pool, neither of which mixes with Streamlit's
+rerun-per-interaction script thread. stdout → a **file**, not a PIPE, so a verbose child can't
+deadlock on a full pipe buffer between reruns. `app.py` polls the log every 2s in a full-page
+progress panel, and `runner.finalize()` snaps the run picker to the new snapshot the instant the
+child exits.
+
+**Verified end to end:** ran the real ingest (exit 0, wrote `data/raw/20260717_122109` — today),
+then `AppTest` confirmed the dashboard defaults to that snapshot (newest of 3) and scores it —
+**396 scored, 350 passed filters, 46 dropped, 0 exceptions.** Also confirmed the button, run
+picker, and 4 tabs render with 0 exceptions before any ingest.
+
+**Key files:** `market_screener/dashboard/runner.py` (new), `market_screener/dashboard/app.py`.
+
+## PIVOT Phase B — Streamlit dashboard (2026-07-17)
+
+**Outcome:** the screener has a UI. It reads snapshots (never the top-`--n` CSV), re-scores live,
+and ranks nothing new — quantstats and Monte Carlo are display only. Six modules were written but
+unrun at the last handoff; this session added the entry point + packaging and **ran it end to
+end for the first time.** 0 exceptions.
+
+**Headline metric:** `streamlit run dashboard/app.py` renders **4 tabs, 6 dataframes, 0 exceptions,
+0 error boxes**; a cold score + Monte Carlo pass over the pool completes in ~16s and grade cuts
+recalibrate normally (150 reference tickers). Verified with Streamlit's `AppTest` harness, which
+runs the whole script — every tab, the quantstats tearsheet, and the live weight-rescore — in one
+pass. The feared Arrow-on-`None`-column crash did not fire. Re-verified from the **project root**
+(the user's failing cwd) after the chdir fix: **396 scored, 366 passed filters, 30 dropped**, 0
+exceptions.
+
+**Field bug caught + fixed (2026-07-17):** first launch outside `market_screener/` gave "No
+snapshots under data/raw" — `snapshot_dir` is relative and the initial AppTest passed only because
+its shell cwd was already `market_screener/`. Fixed by having `app.py` `os.chdir(_ROOT)` at
+startup. Lesson logged: verify entry points from a realistic cwd.
+
+**Items:**
+- **B.8** `dashboard/app.py` — sidebar run picker, config fingerprint as the score cache key,
+  `st.tabs` over the four views. Prepends `market_screener/` to `sys.path` **and `os.chdir`s to
+  it**, so both flat imports (`from config import …`) and relative paths (`data/raw`) resolve no
+  matter where `streamlit run` is launched. Ticker tab gets `kept + dropped` so dropped names stay
+  inspectable; diagnostics/weights get the full unfiltered pool.
+- **B.9** `dashboard/__init__.py` + `dashboard/views/__init__.py` — the views do
+  `from dashboard import data`, which needs both packages importable.
+- **B.10** `requirements.txt` += `streamlit>=1.56.0`, `quantstats>=0.0.81` (commented display-only,
+  with the feed-it-returns rule).
+- **B.11** Ran it. AppTest: 0 exceptions across all tabs.
+
+**Key files:** `market_screener/dashboard/app.py` (entry), `dashboard/__init__.py`,
+`dashboard/views/__init__.py`, `market_screener/requirements.txt`.
+
+**Deferred (in todo.md):** (1) `st.components.v1.html` in `views/ticker.py` is deprecated
+(removal targeted post-2026-06-01) — still works on 1.56, but the replacements take a URL/sanitized
+HTML, not a scrollable srcdoc, so it needs a real fix not a rename. (2) The 4dp gate (dashboard
+composite == CSV `composite_score`) has not been run. Scoring path untouched this session, so the
+Phase A determinism gate (16,095 bytes, EFC 7.8847) is unaffected.
+
 ## PIVOT Phase A — LLM pipes removed (2026-07-17)
 
 **Outcome:** the screener is the whole product. Both second-pass pipes and everything downstream

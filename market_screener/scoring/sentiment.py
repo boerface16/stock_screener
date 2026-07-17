@@ -43,6 +43,20 @@ def count_hits(texts: Sequence[str], positive: Sequence[str], negative: Sequence
     return {"positive": pos, "negative": neg}
 
 
+def score_from_counts(positive: int, negative: int, shrinkage_k: float = 5.0) -> Optional[float]:
+    """Shrinkage-scaled sentiment from explicit pos/neg counts.
+
+    The same map as the lexicon path, but the counts arrive pre-labeled rather than from a word
+    match — this is how StockTwits Bull/Bear labels become social_sentiment. None when there are
+    no labels: unmeasured, not neutral (must renormalize away, never impute 5.0).
+    """
+    n = positive + negative
+    if n == 0:
+        return None
+    rate = (positive - negative) / n
+    return round(5.0 + 5.0 * rate * (n / (n + shrinkage_k)), 4)
+
+
 def sentiment_score(
     texts: Sequence[str],
     positive: Sequence[str],
@@ -50,11 +64,7 @@ def sentiment_score(
     shrinkage_k: float = 5.0,
 ) -> Optional[float]:
     hits = count_hits(texts, positive, negative)
-    n = hits["positive"] + hits["negative"]
-    if n == 0:
-        return None
-    rate = (hits["positive"] - hits["negative"]) / n
-    return round(5.0 + 5.0 * rate * (n / (n + shrinkage_k)), 4)
+    return score_from_counts(hits["positive"], hits["negative"], shrinkage_k)
 
 
 def merge_lexicon(core: Dict[str, List[str]], register: Dict[str, List[str]]) -> Dict[str, List[str]]:

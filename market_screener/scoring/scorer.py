@@ -24,7 +24,7 @@ from scoring.metrics import max_drawdown, volatility, window
 from scoring.monte_carlo import simulate
 from scoring.news import recent_weighted_count
 from scoring.percentile import percentile_scores, score_against_reference
-from scoring.sentiment import merge_lexicon, sentiment_score
+from scoring.sentiment import merge_lexicon, score_from_counts, sentiment_score
 from scoring.volume import volume_ratio
 from snapshot import Snapshot
 
@@ -107,13 +107,17 @@ def _risk_metrics(closes: Optional[np.ndarray], cfg: Config) -> Dict[str, Option
     }
 
 
-def _composite(signals: Dict[str, Optional[float]], cfg: Config) -> Dict[str, Optional[float]]:
+def composite(signals: Dict[str, Optional[float]], cfg: Config) -> Dict[str, Optional[float]]:
     """
     Weighted mean over the signals actually observed, renormalized per ticker.
 
     `coverage` falls out as the fraction of total weight that was observed, because the full
     weight set sums to 1.0. A ticker missing half its signals scores on the half it has and
     says so, rather than being handed 5.0s that look like measurements.
+
+    Public because the dashboard's weight sliders re-derive the composite from already-scored
+    signals. They must call *this*, not a copy — two implementations of the renormalization
+    would drift, which is the duplicate-fetcher bug in tasks/lessons.md.
     """
     num = den = 0.0
     for name, value in signals.items():
@@ -127,28 +131,45 @@ def _composite(signals: Dict[str, Optional[float]], cfg: Config) -> Dict[str, Op
     return {"composite_score": round(num / den, 4), "coverage": round(den, 4)}
 
 
-def _passes_filters(row: dict, cfg: Config) -> bool:
-    """Deterministic gates — the honest version of the noise removal the LLM prompt claimed."""
+def filter_reasons(row: dict, cfg: Config) -> List[str]:
+    """Every gate this row fails, named. Empty list means it passes.
+
+    Returns reasons rather than a bool so the dashboard can say *why* a ticker was dropped;
+    `passes_filters` is just the emptiness of this list, so there is one implementation.
+    """
+    out: List[str] = []
     if row.get("composite_score") is None:
-        return False
+        out.append("no signals observed")
+        return out                      # nothing else is meaningful without a score
     if row["coverage"] < cfg.min_coverage:
-        return False
+        out.append(f"coverage {row['coverage']:.2f} < {cfg.min_coverage}")
     dd = row.get("max_drawdown_raw")
     if dd is not None and dd < cfg.max_drawdown_floor:
-        return False
+        out.append(f"max_drawdown {dd:.2f} < {cfg.max_drawdown_floor}")
     vol = row.get("volatility_raw")
     if vol is not None and vol > cfg.volatility_ceiling:
-        return False
+        out.append(f"volatility {vol:.2f} > {cfg.volatility_ceiling}")
     p_bust = row.get("p_bust_2y")
     if p_bust is not None and p_bust > cfg.mc_bust_filter:
-        return False
+        out.append(f"P(bust) {p_bust:.2f} > {cfg.mc_bust_filter}")
     yrs = row.get("history_years")
     if yrs is not None and yrs < cfg.min_history_years:
-        return False
-    return True
+        out.append(f"history {yrs:.1f}y < {cfg.min_history_years}y")
+    return out
 
 
-def score_all(snap: Snapshot, cfg: Config) -> List[dict]:
+def passes_filters(row: dict, cfg: Config) -> bool:
+    """Deterministic gates — the honest version of the noise removal the LLM prompt claimed."""
+    return not filter_reasons(row, cfg)
+
+
+def score_all(snap: Snapshot, cfg: Config, apply_filters: bool = True) -> List[dict]:
+    """Score every eligible ticker in the snapshot. Pure: no network, no clock, no threads.
+
+    `apply_filters=False` returns the unfiltered cross-section. The dashboard needs it because
+    `coverage` is weight-dependent, so moving a weight slider changes which tickers clear
+    `min_coverage` — filtering here would bake in the default weights' survivors.
+    """
     _warn_if_looser_than_ingest(snap, cfg)
 
     bench = _closes(snap, cfg.benchmark, "reference")
@@ -178,29 +199,29 @@ def score_all(snap: Snapshot, cfg: Config) -> List[dict]:
     reddit_buzz = percentile_scores({t: float(snap.reddit_counts.get(t, 0)) for t in candidates})
 
     news_lex = merge_lexicon(cfg.sentiment_lexicon_core, cfg.sentiment_lexicon_news)
-    social_lex = merge_lexicon(cfg.sentiment_lexicon_core, cfg.sentiment_lexicon_social)
-    reddit_titles: Dict[str, List[str]] = {t: [] for t in candidates}
-    for post in snap.reddit_posts:
-        title = post.get("title", "")
-        for t in candidates:
-            if t in title.split():        # cheap exact-token match; titles are short
-                reddit_titles[t].append(title)
 
     # --- pass 2: per ticker ---------------------------------------------------------------
     results: List[dict] = []
     for ticker in candidates:
         try:
             row = _score_ticker(ticker, snap, cfg, cuts, bench, ref_risk, fundamentals,
-                                news_buzz, reddit_buzz, news_lex, social_lex, reddit_titles)
+                                news_buzz, reddit_buzz, news_lex)
         except Exception as e:
             print(f"[WARN] Scoring failed for {ticker}: {e}")
             continue
-        if row is not None and _passes_filters(row, cfg):
-            results.append(row)
+        if row is None:
+            continue
+        if apply_filters and not passes_filters(row, cfg):
+            continue
+        results.append(row)
 
     # Ticker is the tiebreak. Sorting on score alone left ties to be resolved by whichever
     # thread finished first, so the same data could rank two ways.
-    results.sort(key=lambda r: (-r["composite_score"], r["ticker"]))
+    # The None check only fires when apply_filters=False (an unscorable row is filtered out
+    # otherwise); it sorts those last and leaves the filtered path's order untouched.
+    results.sort(key=lambda r: (r["composite_score"] is None,
+                                -(r["composite_score"] or 0.0),
+                                r["ticker"]))
     return results
 
 
@@ -215,8 +236,6 @@ def _score_ticker(
     news_buzz: Dict[str, Optional[float]],
     reddit_buzz: Dict[str, Optional[float]],
     news_lex: Dict[str, List[str]],
-    social_lex: Dict[str, List[str]],
-    reddit_titles: Dict[str, List[str]],
 ) -> Optional[dict]:
     info = snap.info[ticker]
     closes = _closes(snap, ticker)
@@ -236,11 +255,15 @@ def _score_ticker(
     gpa_score = round(gold["gold_gpa"] / 4.0 * 10.0, 4) if gold["gold_gpa"] is not None else None
 
     # --- direction ---
+    # news_sentiment: lexicon over Google-News headlines (broad pool coverage).
+    # social_sentiment: StockTwits Bull/Bear labels — poster-set, so counted, not lexicon-scored.
+    # Reddit was retired from this path (it labeled ~1.5% of the pool); it now feeds buzz only.
     news_titles = [n.get("title", "") for n in snap.news.get(ticker, [])]
     news_sent = sentiment_score(news_titles, news_lex["positive"], news_lex["negative"],
                                 cfg.sentiment_shrinkage_k)
-    social_sent = sentiment_score(reddit_titles.get(ticker, []), social_lex["positive"],
-                                  social_lex["negative"], cfg.sentiment_shrinkage_k)
+    st_sent = snap.st_sentiment.get(ticker)
+    social_sent = (score_from_counts(st_sent["bull"], st_sent["bear"], cfg.sentiment_shrinkage_k)
+                   if st_sent else None)
 
     signals: Dict[str, Optional[float]] = {
         "value": fundamentals[ticker]["value"],
@@ -269,7 +292,7 @@ def _score_ticker(
     history_years = round(len(closes) / cfg.trading_days_per_year, 2) if closes is not None else None
     row: Dict[str, object] = {
         "ticker": ticker,
-        **_composite(signals, cfg),
+        **composite(signals, cfg),
         # --- ranking signals ---
         **{k: v for k, v in signals.items()},
         # --- display only (weight 0) ---

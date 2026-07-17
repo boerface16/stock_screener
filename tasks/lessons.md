@@ -2,6 +2,50 @@
 
 Past mistakes and the rules that prevent them.
 
+## Multiple inlined SVGs in one HTML document collide on element IDs
+
+**What happened.** The quantstats tearsheet rendered "corrupt" (garbled/cut-off plots) — reported on
+BMO's 1y report but general. Not a data bug: the tables were all correct (BMO 1y +63.66%, Sharpe
+2.65). Cause: `qs.reports.html` defaults to `figfmt="svg"` and inlines **14 matplotlib SVGs into one
+HTML document**. Those SVGs share **124 duplicate element IDs** (clip-paths, axes, glyph defs) and
+carry **~1300 `<use xlink:href="#id">` references**. In a single document, `<use href="#id">`
+resolves to the **first** element with that id — so every plot after the first was drawn with the
+first plot's clip-paths and glyphs, clipping/garbling its content.
+
+**Why it survived.** The HTML built without error and was structurally well-formed (no missing tags,
+no leftover template placeholders), so every non-visual check passed. The corruption only exists in a
+browser's `<use>` resolution across combined SVGs — invisible to "did it build?" verification.
+
+**Fix.** `figfmt="png"` in `qs.reports.html` — self-contained base64 PNGs have no shared IDs and no
+cross-references (verified: 0 svgs, 0 duplicate ids, 0 use-refs, 14 embedded PNGs). ~15% larger HTML;
+display-only, so fine.
+
+**Rule.** Never inline more than one matplotlib SVG into a shared document — IDs (clip-paths, glyph
+defs, gradients) are only unique *within* a figure, and `<use>`/`url(#id)` references resolve
+document-wide to the first match. Use raster (PNG) figures when embedding many, or namespace every
+id per figure. "It built and is well-formed" does not prove an embedded document renders correctly.
+
+## Verify from a realistic cwd — a dev shell's cwd can mask a cwd-dependent bug
+
+**What happened.** The dashboard's `app.py` was verified with Streamlit's `AppTest` and reported
+"0 exceptions, renders end to end." The user launched the real app and got **"No snapshots under
+data/raw."** Root cause: `config.snapshot_dir = "data/raw"` is relative, and the snapshots live
+under `market_screener/data/raw`. The `AppTest` shell's cwd happened to be `market_screener/`
+(left over from an earlier `cd`), so the relative path resolved; `streamlit run` from the project
+root resolved it against the wrong directory and found nothing. The verification passed *because*
+of the very cwd assumption that broke in the field.
+
+**Why it survived.** The whole codebase assumes cwd = `market_screener/` (flat imports, relative
+`data/raw`/`outputs_TA`). The test inherited that cwd silently instead of asserting it, so it
+proved the happy path and nothing else. Green did not mean correct — it meant "run from the one
+directory where it works."
+
+**Rule.** Verify an entry point from a cwd the user would actually use (the repo root, or a temp
+dir), not the one your shell is parked in. Better: make the entry point establish its own path
+invariants — `app.py` now does `sys.path.insert(0, _ROOT)` **and** `os.chdir(_ROOT)`, so every
+relative path resolves like `python screener.py` regardless of launch dir. If a program depends on
+cwd, either remove the dependency or set it explicitly at startup; do not push it onto the caller.
+
 ## A constant calibrated for one data source is a fossil the moment the source changes
 
 **What happened.** `scoring/news.py` saturated at 8 weighted articles → score 10. That threshold was

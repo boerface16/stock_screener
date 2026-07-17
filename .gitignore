@@ -4,3 +4,6 @@ __pycache__/
 # Snapshots — ~45 MB of binary parquet each, and they are point-in-time market data that
 # no diff can usefully describe. They stay on disk; scoring replays them via --replay.
 market_screener/data/raw/
+
+# Tracking price cache — yfinance closes, refetched on demand and fully reproducible.
+market_screener/tracking/price_cache/

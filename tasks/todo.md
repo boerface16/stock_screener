@@ -1,5 +1,84 @@
 # TODO
 
+## Tracking tab — "which metric leads to the best returns"
+
+Grilled and locked 2026-07-17. A new dashboard tab that turns the date-stamped CSVs into a
+paper-trading experiment: each screening run buys the top picks per metric, and we track their
+forward returns over time to see which signal actually predicts gains.
+
+**SHIPPED 2026-07-17 — see `tasks/accomplished.md`.** All of T.1–T.7 done: `tracking/` back-end
+(cohorts/prices/returns) + `dashboard/views/tracking.py` + 5th tab wired. `AppTest` 0 exceptions,
+live P/L hand-verified (EFC −$15.48). The locked design is archived below.
+
+**Open follow-ups (non-blocking, revisit as data accumulates):**
+- [ ] Only one CSV on disk today → horizons all empty. Re-check the leaderboard once cohorts reach
+      1mo/3mo so the fixed-horizon ranking actually populates.
+- [ ] `tracking_position_usd` remainder cash is ignored (a $600 stock deploys $600, not $1000). Fine
+      for % comparison; revisit only if a dollar-accurate book is wanted.
+- [ ] Live view mixes CSV raw entry price with yfinance adjusted current close — tiny over short
+      horizons, but if it ever matters, anchor live entry to the yf adjusted close too.
+
+<details><summary>locked design (archived)</summary>
+
+### Decisions locked (grill 2026-07-17)
+
+| Branch | Decision |
+|---|---|
+| **Model** | **Cohort buy-and-hold.** Each CSV = a frozen batch of picks bought at that run's price, held forever, never sold. A metric's score = avg forward return across all its cohorts. No exit logic. |
+| **Buckets (10)** | `composite` → top **10**; `value, quality, growth, gold_score, max_drawdown, volatility, news_sentiment, social_sentiment, capitol_hill` → top **3** each. |
+| **Bucket direction** | Always highest normalized score. For `max_drawdown`/`volatility` (0–10, higher=less risk) that means the calmest names. |
+| **Cohort frequency** | **One per CSV file** (user's call; intraday duplicates accepted). |
+| **Ledger storage** | **Derived, not persisted.** Scan `outputs_TA/**/screener_*.csv`, rebuild every cohort from rows. Only cache is a prices lookup. Fully reproducible; backfills history. |
+| **Entry price** | The `price_usd` already in the CSV (frozen, deterministic). |
+| **Current/historical prices** | **yfinance**, cached to `tracking/price_cache/` keyed by ticker+date. Refetch only missing/newest. Tab is online-only by nature; screener determinism untouched. |
+| **Position size** | `floor(1000 / price)` whole shares. If price > $1000 (floor 0), **buy 1 share**. |
+| **Aggregation** | **Equal-weight avg % return** per bucket (a $1500 and a $20 name count equally). $ P/L shown too, but ranking uses avg %. |
+| **Comparison basis** | **Both** — a live mark-to-market "standings" view AND a fixed-horizon analysis. **Ranking uses fixed-horizon** (apples-to-apples across cohort ages). |
+| **Horizons** | **1mo / 3mo / 6mo / 1yr** (21/63/126/252 trading days). Cohorts too young for a horizon are excluded from it. |
+| **Benchmark** | **SPY.** Show return AND excess-vs-SPY over the same window. |
+| **Deep-dive engine** | **Reuse `dashboard/tearsheet.py`.** Each bucket → a synthetic daily return series → the existing quantstats path (equity/drawdown/monthly-heatmap/Sharpe, SPY-benchmarked). |
+| **Comparison chart** | Multi-line equity curve, **SPY + top 3–4 buckets by default**, toggle any bucket on/off. |
+| **Layout** | Leaderboard (top) + comparison equity curve (mid) + per-bucket drill-down w/ full quantstats tearsheet (bottom). Mirrors the Rankings table→tearsheet pattern. |
+
+### The synthetic-strategy trick (why quantstats reuse is nearly free)
+
+A bucket's **daily return** on any day = equal-weight avg of the daily returns of every position
+currently open in it (positions switch on as cohorts are added over time). That single return
+series feeds the existing tearsheet machinery unchanged. **CRITICAL — feed quantstats RETURNS, not
+PRICES** (`lessons.md`: the phantom-baseline bug makes `max_drawdown(prices)` wrong for 44% of
+names). The whole tracker is built on returns, so we stay on the right side of that.
+
+### Plan
+
+- [ ] **T.1 `tracking/cohorts.py`** — scan `outputs_TA/**/screener_*.csv`; for each CSV build the 10
+      buckets (top-N per metric, entry `price_usd`, `floor(1000/price)` shares min 1). Pure, no network.
+- [ ] **T.2 `tracking/prices.py`** — yfinance daily-close fetch + disk cache (`tracking/price_cache/`),
+      keyed by ticker+date. `SPY` fetched once. Returns a per-ticker daily-close series aligned to
+      trading days.
+- [ ] **T.3 `tracking/returns.py`** — per-position forward returns; per-bucket **synthetic daily
+      return series** (equal-weight of open positions); fixed-horizon aggregates (1/3/6/12-mo) across
+      eligible cohorts; live mark-to-market P/L; excess-vs-SPY.
+- [ ] **T.4 `dashboard/views/tracking.py`** — leaderboard table (ranked by fixed-horizon excess),
+      toggleable multi-line equity curve (SPY + top buckets default), per-bucket drill-down →
+      `render_tearsheet` on the synthetic series + its cohorts/picks table.
+- [ ] **T.5 Wire the tab** into `dashboard/app.py` (`st.tabs`).
+- [ ] **T.6 Verify** end-to-end on the real CSVs on disk; confirm a hand-computed position return
+      matches; confirm the synthetic series fed to quantstats is RETURNS (0 price-fed calls).
+- [ ] **T.7** Update `PROJECT_MAP.md` (new `tracking/` module block) in the same commit.
+
+### Open / accepted risks
+
+- Only **one CSV exists on disk today** (`2026-07-16`). The tab is real but has ~nothing to plot
+  until more runs accumulate — build against it, expect sparse early views.
+- CSV holds only the top `--n` (default 50); buckets are drawn from those, not the full pool. Fine —
+  the picks are what a user would actually have acted on.
+- Weekend/holiday entry: entry price stays the CSV `price_usd`; the return series starts at the next
+  trading day's close. Decide in T.3.
+- Delisted / no-yfinance-data ticker → position marked N/A, excluded from averages, flagged in UI.
+- Missing metric value → ticker simply absent from that bucket (never impute).
+
+</details>
+
 ## PIVOT — drop the LLM pipes, build a Streamlit dashboard
 
 Decided 2026-07-17. The two second-pass pipes are cut: too slow, and TradingAgents' Ollama runs
@@ -25,10 +104,24 @@ running peak. `max_drawdown(returns)` is **exact: 0/373 wrong**. Full mechanism 
 scoring path regardless (numpy is 4x faster and exact); quantstats is display-only and ranks
 nothing.
 
-### Phase B — Dashboard
+### Phase B — Dashboard  ✅ **DONE 2026-07-17 — see `tasks/accomplished.md`**
+
+All eight modules wired and the app runs end to end: `streamlit run dashboard/app.py` renders
+4 tabs, 0 exceptions, 6 dataframes, metrics populate. `app.py` + both `__init__.py` written,
+`requirements.txt` updated (streamlit, quantstats). Verified with Streamlit's `AppTest` (runs the
+full script incl. all tabs, quantstats tearsheet, live rescore). Only open item is a deprecation:
+`ticker.py` uses `st.components.v1.html` (removal targeted post-2026-06-01) — still works on 1.56.
+
+<details><summary>original Phase B plan (archived)</summary>
+
+**STATE AS OF 2026-07-17 handoff:** six modules are written, `app.py` and the two `__init__.py`
+files are **not**, and **not one line of the dashboard has ever been executed.** Every "done"
+below means "code exists", not "works". Assume nothing renders until `app.py` exists and
+`streamlit run` succeeds. The two production refactors it depends on (B.6a, `simulate_terminal`)
+*are* verified — the determinism gate held after both (16,095 bytes, EFC 7.8847).
 
 **Architecture:** reads snapshots, not CSVs. The CSV is truncated to `--n` (`screener.py:132` —
-today's file has **12 rows**, not the 366 that passed filters). `load_snapshot()` + `score_all()`
+today's file has **50 rows**, not the 366 that passed filters). `load_snapshot()` + `score_all()`
 is already pure and network-free, which is exactly what a dashboard wants — and it is the payoff
 for Phase 1's determinism work.
 
@@ -40,34 +133,56 @@ market_screener/dashboard/
   views/table.py | ticker.py | diagnostics.py | weights.py
 ```
 
-- [ ] **B.1 Cached data layer.** `score_all` is ~1.3 min (Monte Carlo, 5000 sims × 400) — cache
-      per `(run_ts, config hash)`. Run picker lists `data/raw/*`.
-- [ ] **B.2 Ranked table + filters.** All 366 rows. Sort/filter by sector, grade, score, coverage,
-      `meme_flag`; ticker search.
-- [ ] **B.3 Per-ticker detail.** Grade ladder, signal breakdown vs pool, the `reason` drivers,
-      Monte Carlo distribution, news buzz.
-- [ ] **B.4 quantstats tearsheet** on the detail page, window toggle over `cfg.ladder_windows`
-      (3mo / 1y / **2.5y** / 5y / 10y), benchmarked vs SPY from `reference.parquet`.
-      **Returns-fed, never prices.** ~1.7s / 729 KB per report, disk-cached.
-      Note: the toggle uses **2.5y, not 2y** — those are the config's real ladder windows, so the
-      tearsheet matches the grades shown next to it. 2y exists nowhere in the pipeline.
-- [ ] **B.5 Signal diagnostics.** Per-signal sd, distinct count, fraction pinned at min/max,
-      histogram. This is the view that would have caught the dead `news` constant and the 84%
-      saturation without a manual measurement — `lessons.md` says to check spread before trusting
-      a signal, so the tool should just show it.
-- [ ] **B.6 Weight tuning.** Sliders over `cfg.weights` → live re-rank. **Must call the production
-      `scorer._composite`**, not a copy — a second renormalization implementation is exactly the
-      duplicate-fetcher bug from `lessons.md`. Recomputing from cached signals is cheap; no
-      re-score. Show rank deltas vs the 0.45/0.35/0.10/0.10 prior.
-  - [ ] **B.6a** `score_all(..., apply_filters=False)` so the dashboard filters itself. Needed
-        because `coverage` is weight-dependent, so `min_coverage` re-admits/drops tickers as the
-        sliders move. Keeps one filter implementation.
-- [ ] **B.7 `requirements.txt`:** add `streamlit`, `quantstats` (display-only — comment it).
-      Both already installed (streamlit 1.56.0, quantstats 0.0.81).
+- [x] **B.6a** `score_all(..., apply_filters=False)` + `scorer.composite` / `filter_reasons` /
+      `passes_filters` made public. **VERIFIED** — gate held, byte-identical, EFC 7.8847.
+      `filter_reasons` was added beyond plan: it names every gate a row fails, so the dashboard
+      can say *why* a ticker was dropped, and `passes_filters` is just its emptiness (one
+      implementation).
+- [x] **`simulate_terminal`** split out of `monte_carlo.simulate` so the dashboard plots the
+      *actual* bootstrap distribution (same seed, same draws) rather than re-rolling its own.
+      **VERIFIED** — gate held after the split.
+- [x] ~~code written~~ **B.1 data layer** (`dashboard/data.py`) — `cache_resource` for the
+      snapshot (46 MB of DataFrames; pickling per call would cost more than the load),
+      `cache_data` for scoring keyed on `(run_ts, cfg_fingerprint)` so editing `config.py`
+      invalidates. **Unrun.**
+- [x] ~~code written~~ **B.2 Rankings** (`views/table.py`) — full pool, sector/search/score/
+      coverage/meme filters, CSV export, dropped-rows expander with reasons. **Unrun.**
+- [x] ~~code written~~ **B.3 Ticker detail** (`views/ticker.py`) — ladder, signal breakdown vs
+      pool percentile, MC distribution, reason. **Unrun.**
+- [x] ~~code written~~ **B.4 Tearsheet** (`dashboard/tearsheet.py`) — returns-fed, window toggle
+      over `cfg.ladder_windows`, SPY-benchmarked, `verify_against_metrics` surfaces the
+      qs-vs-`metrics.py` agreement **in the UI** rather than hiding it in a test. **Unrun.**
+- [x] ~~code written~~ **B.5 Diagnostics** (`views/diagnostics.py`) — sd / distinct /
+      fraction-pinned / missing per signal + a `health` verdict, coverage histogram. **Unrun.**
+- [x] ~~code written~~ **B.6 Weight tuning** (`views/weights.py`) — sliders → `data.rescore` →
+      production `scorer.composite`. Renormalizes to 1.0 (coverage is a *fraction of total
+      weight*, so unnormalized sliders would inflate it past `min_coverage`). **Unrun.**
+
+**Remaining to finish Phase B:**
+- [ ] **B.8 `dashboard/app.py`** — entry, snapshot run picker, `st.tabs`, `st.set_page_config`.
+      **Nothing works without this.**
+- [ ] **B.9 `dashboard/__init__.py` + `dashboard/views/__init__.py`** — the views import
+      `from dashboard import data`, which needs the package to be importable with
+      `market_screener/` as cwd.
+- [ ] **B.10 `requirements.txt`:** add `streamlit`, `quantstats` (**comment it as display-only**).
+      Both already installed (streamlit 1.56.0, quantstats 0.0.81) — so a missing line here fails
+      only on a fresh machine, which is the worst time to find it.
+- [ ] **B.11 RUN IT.** `streamlit run dashboard/app.py` from `market_screener/`. Nothing above is
+      real until this renders. Expect import errors, Streamlit API drift (1.56), and the
+      `to_frame` → `st.dataframe` Arrow conversion choking on `None`-typed columns.
 
 **Gate:** the dashboard's composite for the default weights must equal the CSV's
 `composite_score` for the same snapshot, to 4dp. If the dashboard disagrees with the pipeline,
 one of them is lying.
+
+</details>
+
+**Still open after Phase B:**
+- [ ] Replace `st.components.v1.html` in `dashboard/views/ticker.py` with the non-deprecated API
+      (Streamlit flags removal post-2026-06-01; `st.iframe`/`st.html` take a URL/sanitized HTML,
+      not a scrollable srcdoc, so this needs a real look, not a rename). Non-blocking — works today.
+- [ ] Gate not yet run: dashboard composite == CSV `composite_score` to 4dp for the same snapshot.
+      Cheap to confirm and worth doing before trusting the numbers on screen.
 
 ### Open
 
@@ -290,17 +405,11 @@ penny stock to EFC/JPM/MU-class names; no ranking signal is dead. Replay stays b
 
 ### Still open in Phase 2
 
-- [ ] **2.6b StockTwits streams → human labels.** Trending is live, but `streams/symbol/<T>.json`
-      (1 req/ticker) carries the bullish/bearish labels that 2.8's validation gate needs.
-      Throttle + degrade; a 400-request burst is still unproven (12 sampled).
-- [ ] **2.8b Validate the sentiment lexicon.** **v1 is shipped but never validated** — the plan's
-      gate was "agreement vs StockTwits labels; DELL's -14% day scores < 4.0" and neither has
-      been run. Blocked on 2.6b. Until then `news_sentiment` + `social_sentiment` are 0.10 of the
-      composite resting on a guess.
-- [ ] **2.8c `social_sentiment` is missing for 360/367 rows.** Only ~45 tickers get Reddit
-      mentions and few titles contain lexicon words, so it renormalizes away for ~98% of the pool.
-      Correct behaviour, but it means the signal is nearly inert — decide whether StockTwits
-      streams (2.6b) fill it, or whether DIRECTION should be news-only at 0.10.
+- [x] **2.6b/2.8b/2.8c RESOLVED 2026-07-17 — see `tasks/accomplished.md`.** `social_sentiment` now
+      comes from StockTwits `streams/symbol/<T>.json` Bull/Bear labels (schema v4), not the
+      Reddit-title lexicon. Coverage **6/396 → 186/396 (47%)**; budget-capped at
+      `stocktwits_stream_budget=200`. The label IS the signal, so there's no lexicon left to
+      validate — 2.8b dissolves. Reddit stays discovery/buzz only.
 - [ ] **2.3b `ulcer_index`** — implemented in `metrics.py` but unused. Include only if it earns a
       slot against max_drawdown (the plan's own bar: "if it earns it").
 

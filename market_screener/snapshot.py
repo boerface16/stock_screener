@@ -22,7 +22,10 @@ import pandas as pd
 #             (benchmark + reference universe closes, the basis for the grade cuts).
 #   v2 -> v3: news items carry {title, published} instead of {providerPublishTime} — the
 #             relevance filter and the sentiment lexicon both need the headline text.
-SCHEMA_VERSION = 3
+#   v3 -> v4: stocktwits.json carries {ranks, sentiment}; sentiment is per-ticker Bull/Bear
+#             counts from message streams and is now the social_sentiment source (Reddit-title
+#             lexicon retired — it covered ~1.5% of the pool).
+SCHEMA_VERSION = 4
 
 _PRICES = "prices.parquet"
 _REFERENCE = "reference.parquet"
@@ -50,6 +53,7 @@ class Snapshot:
     reddit_counts: Dict[str, int] = field(default_factory=dict)
     reddit_posts: List[dict] = field(default_factory=list)
     st_ranks: Dict[str, int] = field(default_factory=dict)
+    st_sentiment: Dict[str, Dict[str, int]] = field(default_factory=dict)  # {ticker: {bull, bear}}
     capitol: Dict[str, dict] = field(default_factory=dict)
     meta: dict = field(default_factory=dict)
 
@@ -107,7 +111,7 @@ def write_snapshot(snap: Snapshot, cfg) -> str:
     _dump(snap.info, os.path.join(d, _INFO))
     _dump(snap.news, os.path.join(d, _NEWS))
     _dump({"counts": snap.reddit_counts, "posts": snap.reddit_posts}, os.path.join(d, _REDDIT))
-    _dump({"ranks": snap.st_ranks}, os.path.join(d, _STOCKTWITS))
+    _dump({"ranks": snap.st_ranks, "sentiment": snap.st_sentiment}, os.path.join(d, _STOCKTWITS))
     _dump(snap.capitol, os.path.join(d, _CAPITOL))
 
     meta = {
@@ -142,6 +146,7 @@ def load_snapshot(cfg, run_ts: str) -> Snapshot:
         return _frame_to_prices(pd.read_parquet(path)) if os.path.exists(path) else {}
 
     reddit = _load(os.path.join(d, _REDDIT), {})
+    st_blob = _load(os.path.join(d, _STOCKTWITS), {})
     return Snapshot(
         run_ts=meta["run_ts"],
         ingest_time=float(meta["ingest_time"]),
@@ -152,7 +157,9 @@ def load_snapshot(cfg, run_ts: str) -> Snapshot:
         news=_load(os.path.join(d, _NEWS), {}),
         reddit_counts={k: int(v) for k, v in reddit.get("counts", {}).items()},
         reddit_posts=reddit.get("posts", []),
-        st_ranks={k: int(v) for k, v in _load(os.path.join(d, _STOCKTWITS), {}).get("ranks", {}).items()},
+        st_ranks={k: int(v) for k, v in st_blob.get("ranks", {}).items()},
+        st_sentiment={k: {"bull": int(v.get("bull", 0)), "bear": int(v.get("bear", 0))}
+                      for k, v in st_blob.get("sentiment", {}).items()},
         capitol=_load(os.path.join(d, _CAPITOL), {}),
         meta=meta,
     )

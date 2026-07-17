@@ -21,6 +21,26 @@ import numpy as np
 from scoring.metrics import daily_returns
 
 
+def simulate_terminal(
+    closes: Sequence[float],
+    horizon_days: int,
+    n_sims: int,
+    seed: int,
+) -> Optional[np.ndarray]:
+    """The bootstrapped terminal returns themselves. Fixed seed → identical paths on replay.
+
+    Split out of `simulate` so the dashboard can plot the distribution behind p_goal/p_bust
+    without a second copy of the bootstrap. Same seed, same draws, same numbers — a re-rolled
+    histogram would not be the distribution the filter actually used.
+    """
+    r = daily_returns(closes)
+    if len(r) < 60:
+        return None
+    rng = np.random.default_rng(seed)
+    draws = rng.choice(r, size=(n_sims, horizon_days), replace=True)
+    return np.prod(1.0 + draws, axis=1) - 1.0
+
+
 def simulate(
     closes: Sequence[float],
     horizon_days: int,
@@ -34,13 +54,10 @@ def simulate(
 
     Returns p_goal / p_bust / median_return, plus `confidence` derived from drift uncertainty.
     """
-    r = daily_returns(closes)
-    if len(r) < 60:
+    terminal = simulate_terminal(closes, horizon_days, n_sims, seed)
+    if terminal is None:
         return None
-
-    rng = np.random.default_rng(seed)
-    draws = rng.choice(r, size=(n_sims, horizon_days), replace=True)
-    terminal = np.prod(1.0 + draws, axis=1) - 1.0
+    r = daily_returns(closes)
 
     return {
         "p_goal": float((terminal >= goal).mean()),

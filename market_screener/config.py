@@ -95,6 +95,24 @@ class Config:
     risk_window: str = "2.5y"
     fundamentals_min_peers: int = 5
 
+    # Tracking tab — paper-trade the top picks per metric and follow their forward returns.
+    # Each dated CSV = a frozen cohort bought at that run's price_usd, held forever (no selling).
+    # The question it answers: which signal actually predicts gains?
+    tracking_position_usd: float = 1000.0   # dollars per pick; floor to whole shares, min 1
+    tracking_cache_dir: str = "tracking/price_cache"
+    # Fixed-horizon reads (trading days). A cohort too young for a horizon is excluded from it.
+    tracking_horizons: dict = field(default_factory=lambda: {
+        "1mo": 21, "3mo": 63, "6mo": 126, "1yr": 252,
+    })
+    # metric column -> how many top names that bucket holds. Direction is always highest score;
+    # for max_drawdown/volatility (0-10, higher = less risk) that means the calmest names.
+    tracking_buckets: dict = field(default_factory=lambda: {
+        "composite_score": 10,
+        "value": 3, "quality": 3, "growth": 3,
+        "gold_score": 3, "max_drawdown": 3, "volatility": 3,
+        "news_sentiment": 3, "social_sentiment": 3, "capitol_hill": 3,
+    })
+
     # Sentiment. Lexicon v1 is an explicit guess until it is validated against StockTwits'
     # own bullish/bearish labels; `shrinkage_k` is what stops one word from scoring a 10.
     sentiment_shrinkage_k: float = 5.0
@@ -120,6 +138,8 @@ class Config:
         "negative": ["below estimates", "cuts guidance", "price target cut", "sec probe",
                      "profit warning", "shares tumble", "shares plunge"],
     })
+    # RETIRED as of schema v4: social_sentiment now comes from StockTwits Bull/Bear labels, not a
+    # Reddit-title lexicon (which covered ~1.5% of the pool). Kept for reference / possible reuse.
     sentiment_lexicon_social: dict = field(default_factory=lambda: {
         "positive": ["moon", "mooning", "calls", "yolo", "tendies", "squeeze", "printing",
                      "diamond hands", "to the moon", "buy the dip", "lfg"],
@@ -150,6 +170,14 @@ class Config:
 
     # Capitol Trades
     capitol_trades_pages: int = 3   # pages of recent trades to scrape (~60 days coverage)
+
+    # StockTwits message streams → per-ticker Bull/Bear sentiment (the social_sentiment source).
+    # Budgeted because the unauthenticated API allows ~200 requests/hour: the top `budget` pool
+    # tickers (confirmation order) get a stream fetch, the tail renormalizes away. Labels are
+    # poster-set, so there is no lexicon to validate — the label IS the signal.
+    stocktwits_stream_budget: int = 200
+    stocktwits_stream_delay: float = 0.4    # seconds between stream requests (rate-limit safety)
+    stocktwits_min_messages: int = 2        # min Bull/Bear labels to score; below = unmeasured
 
     # Retry
     yfinance_retries: int = 2
