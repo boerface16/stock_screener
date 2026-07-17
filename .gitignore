@@ -7,3 +7,9 @@ market_screener/data/raw/
 
 # Tracking price cache — yfinance closes, refetched on demand and fully reproducible.
 market_screener/tracking/price_cache/
+
+# Private working notes — kept local, out of the public repo.
+PROJECT_MAP.md
+session_handoff.md
+tasks/
+.claude/

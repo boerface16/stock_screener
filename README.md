@@ -294,6 +294,3 @@ Determinism is a first-class feature, not a nicety:
 This is what makes the Tracking tab and any future weight-tuning trustworthy: the same inputs always
 produce the same numbers.
 
----
-
-*For the internal module map, gotchas, and design history see `PROJECT_MAP.md` and `tasks/`.*
