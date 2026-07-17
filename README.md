@@ -11,8 +11,57 @@ the pool (movers, trending, Reddit) never rank it — weighting them again would
 
 ---
 
+## Quick start
+
+```bash
+# 1. Install (once)
+pip install -r market_screener/requirements.txt
+playwright install chromium          # crawl4ai's headless browser (Reddit + Capitol Trades)
+
+# 2. Launch the dashboard — works from anywhere
+streamlit run market_screener/dashboard/app.py
+```
+
+The dashboard opens in your browser. Click **"Run screener for today"** in the sidebar to fetch
+today's data and produce a fresh ranking, or explore the snapshot that ships with the repo.
+
+Prefer the command line?
+
+```bash
+cd market_screener
+python screener.py            # full run: fetch, score, write a dated CSV + print a table
+python screener.py --replay   # re-score the newest snapshot with no network (deterministic)
+```
+
+See [Usage](#usage) for all flags.
+
+---
+
+## Screenshots
+
+**Rankings** — the full scored pool with the composite bar, filters, and per-signal columns:
+
+![Rankings tab](docs/images/rankings.png)
+
+**Tracking** — paper-trades each run's top picks per metric and ranks the metrics by forward return
+vs SPY (horizon columns fill in as cohorts age):
+
+![Tracking tab](docs/images/tracking.png)
+
+**Ticker detail** — the grade ladder (excess sharpe vs SPY per window) and each signal vs the pool:
+
+![Ticker detail tab](docs/images/ticker.png)
+
+**Diagnostics** — signal health across the pool (spread, distinct values, saturation), so a dead or
+saturated signal can't hide:
+
+![Diagnostics tab](docs/images/diagnostics.png)
+
+---
+
 ## Table of contents
 
+- [Screenshots](#screenshots)
 - [How it works](#how-it-works)
 - [Data sources](#data-sources)
 - [How each score is calculated](#how-each-score-is-calculated)
