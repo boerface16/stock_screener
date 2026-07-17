@@ -276,7 +276,8 @@ def _score_ticker(
                                               ref_risk["volatility"], higher_is_better=False),
         "news_sentiment": news_sent,
         "social_sentiment": social_sent,
-        "capitol_hill": score_capitol_hill(ticker, snap.capitol),
+        "capitol_hill": score_capitol_hill(ticker, snap.capitol,
+                                            cfg.capitol_buy_points, cfg.capitol_sell_points),
     }
 
     mc = simulate(closes, cfg.mc_horizon_days, cfg.mc_sims, cfg.mc_goal, cfg.mc_bust,

@@ -156,6 +156,16 @@ class Config:
     min_coverage: float = 0.40           # fraction of ranking signals actually observed
     min_history_years: float = 1.0
 
+    # Capitol Hill — congressional trades on a signed -10..10 scale (0 = neutral). Each weighted
+    # buy adds capitol_buy_points, each weighted sell subtracts capitol_sell_points, clamped to
+    # [-10, 10]. Selling is a genuine negative: members are poised to hold material non-public
+    # info, so a sell-off should drag the composite down, not merely fail to lift it. No trades
+    # -> None (renormalizes out of the composite, never imputed) — a stock Congress never touched
+    # is neutral, not penalized. NB: the -10..10 range roughly doubles this signal's swing in the
+    # composite vs the old 0..10 mapping at the same 0.10 weight.
+    capitol_buy_points: float = 3.3
+    capitol_sell_points: float = 3.3
+
     # Reddit
     reddit_subreddits: List[str] = field(default_factory=lambda: [
         "wallstreetbets", "stocks", "investing", "Stocks_Picks", "ValueInvesting", "StockPickNews", "stocktraders", "algotrading"

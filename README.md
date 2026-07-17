@@ -122,9 +122,11 @@ Seeded tickers are ranked by how many sources corroborate them and capped at `se
 
 ## How each score is calculated
 
-Every ranking signal is mapped to a **0–10** scale. Missing data returns `None` (it renormalizes
-away — see [coverage](#the-composite-coverage-and-filters)); it is **never** imputed to a neutral
-5.0, so "no data" stays distinguishable from "measured, and average".
+Every ranking signal is mapped to a **0–10** scale — with one exception, `capitol_hill`, which is
+signed **−10..10** so congressional selling can actively penalize (see [Insider](#insider--capitol_hill--weight-010)).
+Missing data returns `None` (it renormalizes away — see
+[coverage](#the-composite-coverage-and-filters)); it is **never** imputed to a neutral value, so
+"no data" stays distinguishable from "measured, and average".
 
 Two mapping philosophies, chosen per signal:
 - **Percentile** where the signal is a count or ranking with no meaningful zero (a constant threshold
@@ -193,14 +195,19 @@ The shrinkage term is why one headline doesn't make a verdict — a single posit
 
 ### Insider — `capitol_hill`  (weight 0.10)
 
-Net congressional buying, scored around a neutral 5.0:
+Net congressional trading on a **signed −10..10 scale** (0 = neutral) — the one signal that is not
+0–10, because a congressional *sell* is a genuine negative, not just a weak positive:
 
 ```
-score = clamp(5 + 2·buy_weight − 1·sell_weight, 0, 10)      no data → 5.0
+score = clamp(3.3·buy_weight − 3.3·sell_weight, −10, +10)
+no congressional trades → None  (renormalizes away — neutral, never imputed)
 ```
 
-Trades in the last ~14 days are weighted 1.5× upstream. This is the one signal where 5.0 is a
-legitimate default (Congress simply may not have traded the name).
+Trades in the last ~14 days are weighted 1.5× upstream. Members are poised to hold material
+non-public information, so a sell-off *drags the composite down* rather than merely failing to lift
+it. A name Congress never touched is neutral — the signal renormalizes out, rather than counting as
+a mediocre-but-positive 5.0. (Because the range is ±10 rather than 0–10, this signal swings the
+composite about twice as hard as a 0–10 signal at the same 0.10 weight.)
 
 ### Display-only signals (weight 0 — they inform, they don't rank)
 
