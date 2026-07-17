@@ -22,9 +22,6 @@ from scoring.scorer import score_all
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Market Screener — free-data stock screener")
     parser.add_argument("--n", type=int, default=None, help="Number of tickers in final output (default: 50)")
-    parser.add_argument("--no-llm", action="store_true",
-                        help="Deprecated no-op: ranking is always deterministic now, and the "
-                             "reason column is a template built from the real drivers")
     parser.add_argument("--output", type=str, default="", help="Custom output CSV filename")
     parser.add_argument("--replay", type=str, nargs="?", const="latest", default=None,
                         metavar="RUN_TS",
@@ -45,7 +42,7 @@ def signal_fieldnames(cfg: Config) -> List[str]:
         "divergence", "meme_flag", "news_buzz", "social_buzz", "rel_volume",
         "max_drawdown_raw", "volatility_raw",
         "p_goal_2y", "p_bust_2y", "mc_confidence",
-        "sector", "price_usd", "llm_reason", "run_timestamp",
+        "sector", "price_usd", "reason", "run_timestamp",
     ]
 
 
@@ -75,7 +72,7 @@ def print_table(rows: List[dict]) -> None:
             f"{_n(row.get('growth'))}  {_n(row.get('gold_gpa'))}  "
             f"{str(row.get('grades') or ''):<17}  {_n(row.get('history_years'))}  "
             f"{_n(row.get('capitol_hill'))}  "
-            f"${_n(row.get('price_usd'), 8, 2)}  {row.get('llm_reason', '')}"
+            f"${_n(row.get('price_usd'), 8, 2)}  {row.get('reason', '')}"
         )
     print()
 
@@ -122,12 +119,11 @@ def main() -> None:
         print("[ERROR] No tickers survived scoring. Exiting.")
         sys.exit(1)
 
-    # Phase 3: rank + explain. The LLM is out of the ranking path entirely — it saw six numbers
-    # per ticker and was asked to judge news catalysts and market caps it could not see, so it
-    # narrated the dead `news` constant back as evidence. The reason is now a template built
-    # from the drivers that actually moved the rank.
+    # Phase 3: rank + explain. There is no LLM anywhere in this project — it was asked to judge
+    # news catalysts and market caps it could not see, so it narrated the dead `news` constant
+    # back as evidence. The reason is a template built from the drivers that moved the rank.
     ranked = [
-        {**c, "rank": i + 1, "llm_reason": build_reason(c, cfg), "run_timestamp": run_ts}
+        {**c, "rank": i + 1, "reason": build_reason(c, cfg), "run_timestamp": run_ts}
         for i, c in enumerate(scored[:cfg.n_results])
     ]
 

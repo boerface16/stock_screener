@@ -5,20 +5,23 @@ Keep it current: when you add/move/rename files or change outputs, update this m
 
 ## What this project is
 
-A free-data stock screener plus two optional LLM "second-pass" pipelines, all running locally against
-Ollama. No paid APIs.
+A free-data, fully deterministic stock screener for a **2-year holding period**. No paid APIs, no
+LLM, no network at score time.
 
 ```
 Phase 1  Ingest             Yahoo movers + StockTwits + Reddit + Finviz + Capitol Trades → ticker pool
          (the only            → fetch prices/info/news (threaded) → snapshot to data/raw/<run_ts>/
           network phase)
-Phase 2  Rule scoring       PURE function of the snapshot: 6 signals scored 0–10 → weighted composite
-Phase 3  LLM cull           Ollama re-ranks top N×2 candidates → exactly N with a one-line reason
-Phase 4  CSV out            screener_<ts>.csv
-         ↓ (manual, --input)
-Second pass (pick one)      TradingAgents_pipe.py  → BUY/SELL/HOLD per ticker
-                            HedgeFund_pipe.py      → buy/sell action + quantity
+Phase 2  Rule scoring       PURE function of the snapshot: 9 signals scored 0–10 → weighted composite
+Phase 3  Rank + explain     deterministic sort; `reason` is a template built from the real drivers
+Phase 4  CSV out            screener_<ts>.csv  (capped at --n)
 ```
+
+**There is no second pass.** `TradingAgents_pipe.py` and `HedgeFund_pipe.py` were removed
+2026-07-17 — too slow, and TradingAgents' Ollama runs **fabricated tool output** (`tasks/lessons.md`:
+AMD quoted at $150–162 when AMD was $432; `fundamentals_report` 0 characters across all 46 saved
+runs). Ollama is no longer part of this project at all. The screener is the whole product; the
+Streamlit dashboard reads its snapshots.
 
 **These are the pipeline's phases. `tasks/todo.md` uses "Phase 1–4" for the overhaul plan's
 phases — different numbering, don't confuse them.**
@@ -28,7 +31,7 @@ the snapshot. Two replays of one snapshot produce a byte-identical CSV, and scor
 pure by re-scoring with sockets blocked. That split is what makes tuning possible: you cannot A/B
 two lexicons if re-scoring re-fetches a changed internet.
 
-Only 24 Python files — the whole codebase is small enough to read, but start here.
+Under 20 Python files — the whole codebase is small enough to read, but start here.
 
 ## Directory map
 
@@ -37,20 +40,17 @@ Only 24 Python files — the whole codebase is small enough to read, but start h
 | `market_screener/` | The screener package. **All its imports are flat (`from config import ...`) — you must run it with `market_screener/` as the working directory.** |
 | `market_screener/sources/` | Universe seeding — one module per data source |
 | `market_screener/scoring/` | One module per signal + `scorer.py` orchestrator |
-| `market_screener/llm/` | Ollama cull/re-rank pass |
-| `market_screener/outputs_TA/<date>/` | **Where screener.py actually writes** (`config.output_dir`, cwd-relative) |
-| `market_screener/data/raw/<run_ts>/` | Snapshots (`config.snapshot_dir`): `prices.parquet`, `info.json`, `news.json`, `reddit.json`, `stocktwits.json`, `capitol.json`, `meta.json`. ~6.8 MB per 384-ticker run. Replay reads only these |
-| `market_screener/output/` | Legacy screener output + `ta_results/` (TradingAgents' own per-ticker logs + yfinance cache) |
-| `output/` | **Where both pipelines look for screener CSVs** (hardcoded absolute path). Contents are stale May 11–15 runs — see Gotchas |
-| `outputs_trading_agents/<date>/` | TradingAgents_pipe.py results, buys, reasoning |
-| `outputs_hedge/<date>/` | HedgeFund_pipe.py results, buys, reasoning |
-| `reports/<TICKER>_<ts>/` | Not written by any file in this repo — external TradingAgents CLI output |
-| `results/data_cache/` | Empty; TradingAgents default config artifact |
-| `tasks/` | Workflow markdown per CLAUDE.md: `todo.md` (open work), `lessons.md` (mistake rules). `accomplished.md` not yet created — nothing has shipped |
-| Root | `TradingAgents_pipe.py`, `HedgeFund_pipe.py`, `screener_csv.py` (shared CSV reader + schema guard for both pipes), `CLAUDE.md`, `market_screener_plan.md`, `session_handoff.md` |
+| `market_screener/outputs_TA/<date>/` | **Where screener.py actually writes** (`config.output_dir`, cwd-relative). Nothing reads it — the CSV is an export, capped at `--n` |
+| `market_screener/data/raw/<run_ts>/` | Snapshots (`config.snapshot_dir`): `prices.parquet`, `reference.parquet`, `info.json`, `news.json`, `reddit.json`, `stocktwits.json`, `capitol.json`, `meta.json`. **~46 MB per run** (`max` history for the 400 pool + 150 reference tickers). Replay and the dashboard read only these |
+| `tasks/` | Workflow markdown per CLAUDE.md: `todo.md` (open work), `accomplished.md` (shipped + measurements), `lessons.md` (mistake rules) |
+| Root | `CLAUDE.md`, `PROJECT_MAP.md`, `session_handoff.md` — docs only. No code lives at the root any more |
 
-Not a git repo. `docs/MODULE_REFERENCE.md` and `graphify-out/` don't exist — **this file is the
-module reference for now**, per CLAUDE.md.
+**Git repo as of 2026-07-17** (`git init` preceded the pipe removal so the deletions are
+recoverable — commit `Baseline before the LLM-pipe removal`). Snapshots are gitignored: ~46 MB of
+binary parquet each that no diff can describe.
+
+`docs/MODULE_REFERENCE.md` and `graphify-out/` don't exist — **this file is the module reference**,
+per CLAUDE.md.
 
 ## "Where do I look for…" quick index
 
@@ -60,18 +60,14 @@ module reference for now**, per CLAUDE.md.
 | **Re-score without the network** | `python screener.py --replay [RUN_TS]` — omit RUN_TS for the newest. `--ingest-only` stops after the snapshot |
 | Any tunable knob (weights, windows, filters, lexicons) | `market_screener/config.py` — single `Config` dataclass, no YAML |
 | Add/change a data source | `market_screener/sources/<source>.py`, then wire into `sources/__init__.py:seed_universe`. Needs a browser? use `sources/crawler.py`, don't grow a second copy |
-| Add/change a signal | `market_screener/scoring/<signal>.py` → `scorer.py:_score_ticker` → `cfg.signal_weights` + `cfg.signal_categories` → `screener.py:signal_fieldnames` → `screener_csv.py:SIGNAL_COLS`. **Anything needing the network belongs in `ingest.py`, not the scorer** |
+| Add/change a signal | `market_screener/scoring/<signal>.py` → `scorer.py:_score_ticker` → `cfg.signal_weights` + `cfg.signal_categories` → `screener.py:signal_fieldnames`. **Anything needing the network belongs in `ingest.py`, not the scorer** |
 | How a signal is calculated | **Signal taxonomy** section below |
-| ~~LLM prompt / JSON parsing~~ | `market_screener/llm/ranker.py` — **no longer called.** Ranking is deterministic; kept only for reference |
-| ~~Debug the LLM~~ | `market_screener/debug_llm.py` — **orphaned** by the same change (also still says "five signals") |
 | Debug Capitol Trades scraping | `market_screener/debug_capitol.py` (dumps raw crawl4ai markdown) |
-| Second-pass BUY/SELL analysis | `TradingAgents_pipe.py` (needs `tradingagents` pkg) |
-| Second-pass portfolio actions | `HedgeFund_pipe.py` (needs `A:\Stonks\ai-hedge-fund` cloned + installed) |
-| Design rationale / original spec | `market_screener_plan.md` (⚠ **stale**: describes 5 signals and a weekly horizon. Superseded by `tasks/todo.md`) |
+| Design rationale / the locked decisions | `tasks/todo.md` — the grilled design lives there. (`market_screener_plan.md` was **deleted** 2026-07-17: it described 5 signals and a weekly horizon, both wrong) |
 | **What is being built next + why** | **`tasks/todo.md`** — open work only. Phases 1-2 are done |
 | **What already shipped + the measurements** | **`tasks/accomplished.md`** — Phase 1 (determinism) + Phase 2 (signal layer), with the numbers |
 | Past mistakes / rules before coding | `tasks/lessons.md` |
-| Last session's state | `session_handoff.md` (root, current) and `market_screener/session_handoff.md` (older, LLM fix) |
+| Last session's state | `session_handoff.md` (root) |
 
 ## market_screener/ module dictionary
 
@@ -79,10 +75,10 @@ module reference for now**, per CLAUDE.md.
 
 | Module | Purpose |
 |---|---|
-| `screener.py` | CLI entry. 4 phases, writes CSV + prints table. Flags: `--n`, `--no-llm`, `--output`, `--model`, `--replay [RUN_TS]`, `--ingest-only` |
+| `screener.py` | CLI entry. 4 phases, writes CSV + prints table. Flags: `--n`, `--output`, `--replay [RUN_TS]`, `--ingest-only` |
 | `ingest.py` | **The only module that touches the network on a run.** `ingest(cfg, run_ts) -> Snapshot`: seeds the universe, fetches prices/info (threaded, retry → finviz fallback), drops the partial bar, fetches news for liquidity-gate survivors, resolves the finviz P/E fallback into `info["_finviz_trailingPE"]` |
-| `snapshot.py` | `Snapshot` dataclass + `write_snapshot`/`load_snapshot`/`latest_run_ts`. Schema `SCHEMA_VERSION=1`; a version mismatch raises rather than guessing a migration. Carries `ingest_time` — the pinned clock every time-relative scorer reads |
-| `config.py` | `Config` dataclass — every knob. Weights must sum to 1.0. Adds `price_history_period`, `snapshot_dir` |
+| `snapshot.py` | `Snapshot` dataclass + `write_snapshot`/`load_snapshot`/`latest_run_ts`. Schema **`SCHEMA_VERSION=3`**; a version mismatch raises rather than guessing a migration. Carries `ingest_time` — the pinned clock every time-relative scorer reads |
+| `config.py` | `Config` dataclass — every knob. Weights must sum to 1.0. No LLM keys remain (removed 2026-07-17 with the pipes) |
 | `market_utils.py` | `is_market_open()` — 9:30–16:00 ET Mon–Fri. Called **once in ingest**, recorded as `meta.market_open_at_ingest`; calling it at score time made the partial-bar drop depend on replay time |
 
 **sources/** — universe seeding
@@ -117,7 +113,7 @@ Every source swallows its own exceptions and returns empty on failure — a dead
 | `capitol_hill.py` | net congressional buy pressure | 0.10 |
 | `reason.py` | `build_reason` — deterministic template from the drivers that actually moved the rank | — |
 
-**llm/ranker.py** — **no longer in the ranking path.** The model saw six numbers per ticker yet was asked to strip "meme spikes with no news catalyst" and "micro-caps" it could not see, so it narrated the dead `news` constant back as evidence. Ranking is deterministic; `llm_reason` is now `reason.build_reason`. `--no-llm` is a deprecated no-op.
+**There is no LLM.** `llm/ranker.py` and `debug_llm.py` were deleted 2026-07-17. The model saw six numbers per ticker yet was asked to strip "meme spikes with no news catalyst" and "micro-caps" it could not see, so it narrated the dead `news` constant back as evidence. The CSV's `reason` column (renamed from `llm_reason`, which had become a lie) is `reason.build_reason` — it cannot hallucinate and costs nothing.
 
 ## Signal taxonomy — attention DISCOVERS, fundamentals SELECT
 
@@ -146,44 +142,37 @@ INSIDER       0.10   capitol_hill
 
 **Filters** (deterministic, replacing the LLM's claimed noise removal): `min_price`, `min_avg_volume`, `min_coverage=0.40`, `max_drawdown_floor=-0.90`, `volatility_ceiling=2.50`, `p_bust_2y>0.40`, `min_history_years=1.0`. Real pool: 400 → 367 survive.
 
-## Pipelines (root)
-
-| File | Depends on | Reads | Writes |
-|---|---|---|---|
-| `TradingAgents_pipe.py` | `tradingagents` pkg (lazy-imported inside functions), Ollama | latest `output/screener_*.csv` | `outputs_trading_agents/<date>/ta_{results,buys}_<ts>.csv` + `ta_reasoning_<ts>.md`; TradingAgents' own logs → `market_screener/output/ta_results/` |
-| `HedgeFund_pipe.py` | `A:\Stonks\ai-hedge-fund` (`sys.path.insert` → `from src.main import run_hedge_fund`), Ollama | same | `outputs_hedge/<date>/hf_{results,buys}_<ts>.csv` + `hf_reasoning_<ts>.md` |
-
-Both: sort screener rows by `rank`, take top `--n`, emit a buys CSV only when there are buys. Key difference — TradingAgents loops ticker-by-ticker (`graph.propagate`, per-ticker timing, one failure doesn't stop the batch); HedgeFund passes all tickers to one `run_hedge_fund` call with a synthetic portfolio (`--cash`, default 1000), so one exception loses the whole batch and `elapsed_s` is just batch time ÷ ticker count.
-
-`HedgeFund_pipe.py` validates the Ollama model up front (`/api/tags`) and exits with the available list if missing. `TradingAgents_pipe.py` does not.
-
 ## Data artifacts
 
 | File | Produced by | Consumed by |
 |---|---|---|
-| `market_screener/outputs_TA/<date>/screener_<ts>.csv` | `screener.py` | nothing automatically — see Gotchas |
-| `output/screener_<ts>.csv` (11 files, May 11–15) | older screener runs | `find_latest_screener_csv()` in both pipes |
-| `outputs_trading_agents/<date>/*` | `TradingAgents_pipe.py` | you |
-| `outputs_hedge/<date>/*` | `HedgeFund_pipe.py` | you |
-| `market_screener/output/ta_results/<TICKER>/TradingAgentsStrategy_logs/*.json` | tradingagents internals (`results_dir`) | debugging |
-| `market_screener/output/ta_results/data_cache/*-YFin-data-*.csv` | tradingagents yfinance cache | tradingagents |
+| `market_screener/data/raw/<run_ts>/` | `ingest.py` | `--replay`, the dashboard. **The real artifact** — everything else is derived |
+| `market_screener/outputs_TA/<date>/screener_<ts>.csv` | `screener.py` | you. An export, not an input |
 
-Screener CSV columns (2026-07-16 overhaul — **the old schema no longer loads, by design**):
-`rank, ticker, composite_score, coverage, value, quality, growth, gold_score, max_drawdown, volatility, news_sentiment, social_sentiment, capitol_hill, gold_gpa, gold_worst, grades, windows_available, history_years, xs_3mo…xs_10y, divergence, meme_flag, news_buzz, social_buzz, rel_volume, max_drawdown_raw, volatility_raw, p_goal_2y, p_bust_2y, mc_confidence, sector, price_usd, llm_reason, run_timestamp`.
+**The snapshot is the artifact, not the CSV.** The CSV is truncated to `--n` (`screener.py:132` —
+`scored[:cfg.n_results]`), so it holds 50 rows, not the 366 that passed filters. Anything that
+wants the real pool loads the snapshot and calls `score_all` — which is free, because scoring is
+pure and needs no network.
 
-`screener_csv.py:SIGNAL_COLS` must track `config.signal_weights`. The 11 pre-overhaul CSVs in `output/` now **fail loudly** on the guard rather than being scored with blank cells — they were produced by a pipeline with a dead `news` signal and a random pool cap.
+Screener CSV columns (2026-07-16 overhaul; `llm_reason` → `reason` on 2026-07-17):
+`rank, ticker, composite_score, coverage, value, quality, growth, gold_score, max_drawdown, volatility, news_sentiment, social_sentiment, capitol_hill, gold_gpa, gold_worst, grades, windows_available, history_years, xs_3mo…xs_10y, divergence, meme_flag, news_buzz, social_buzz, rel_volume, max_drawdown_raw, volatility_raw, p_goal_2y, p_bust_2y, mc_confidence, sector, price_usd, reason, run_timestamp`.
+
+Pre-overhaul CSVs are all deleted (2026-07-17). They were produced by a pipeline with a dead
+`news` signal and a random pool cap, and nothing can read them: the schema guard that policed
+them lived in `screener_csv.py`, which existed only to serve the two pipes and went with them.
 
 ## Gotchas
 
-1. **The screener's output and the pipelines' input are different directories.** `screener.py` writes to `market_screener/outputs_TA/<date>/`, but both pipes read `screener_csv.SCREENER_OUTPUT_DIR` = `A:\Stonks\Screener_Tool\output\screener_*.csv` (flat, no date subdir) — and their `--help` text claims a third path, `market_screener/output/`. Auto-discovery therefore picks up a stale May-2026 CSV. **Always pass `--input` explicitly**, or fix `SCREENER_OUTPUT_DIR` / `config.output_dir` to agree. As of 2026-07-16 those stale CSVs now **fail loudly** on the schema guard rather than being scored with blank cells.
-2. **`market_screener/` must be the working directory.** Imports are flat (`from config import Config`), so `python market_screener/screener.py` from the root fails.
+1. ~~**The screener's output and the pipelines' input are different directories.**~~ **Dissolved 2026-07-17** — with no pipes, there is no second reader to disagree with `config.output_dir`. Nothing consumes the CSV automatically now.
+2. **`market_screener/` must be the working directory.** Imports are flat (`from config import Config`), so `python market_screener/screener.py` from the root fails. This applies to the dashboard too: `streamlit run dashboard/app.py` from inside `market_screener/`.
 3. **Scoring must stay pure.** No network, no `time.time()`, no threads in `scoring/`. All three were live bugs (see Known bugs). Anything time-relative reads `snap.ingest_time`. To prove purity, block sockets and re-score — that is how the finviz call hiding inside `score_fundamentals` was caught.
 4. **Failures are silent by design.** Sources catch everything and return empty. A dead source looks exactly like a quiet market — StockTwits, Reddit, and Wikipedia were each 403ing silently. **Check spread (`sd`, distinct count, fraction pinned at min/max) on a real pool before trusting any signal.**
 5. **Changing the snapshot layout means bumping `SCHEMA_VERSION`** in `snapshot.py`. `load_snapshot` refuses a mismatch rather than guessing a migration. Currently **v3**; v1/v2 snapshots are unreadable.
 6. **Snapshots are ~46 MB each** (`max` history for 400 pool + 150 reference tickers). They accumulate in `market_screener/data/raw/`. Prune old ones.
 7. **Only `Close` and `Volume` are snapshotted.** No scorer reads OHLC, and dropping it keeps snapshots sane — but an OHLC-based signal would need a re-ingest.
-8. Model defaults disagree: `config.py` and `TradingAgents_pipe.py` use `gemma4:latest`; `HedgeFund_pipe.py` uses `qwen3.5:9b`. Only the pipes use the LLM now.
+8. ~~Model defaults disagree~~ — **dissolved 2026-07-17.** No model, no Ollama, no LLM keys in `config.py`.
 9. `finviz` appears both as a seeding source and as an ingest fallback (info + P/E) — it's rate-limit-prone and blocking it degrades two phases at once.
+10. **quantstats: feed it returns, never prices.** `qs.stats.max_drawdown` prepends a phantom baseline chosen by tier (`first_price > 10` → **100.0**), which joins the running peak — so any stock starting above $10 that trades below $100 gets a drawdown measured from a price it never traded at. Wrong for **44% of the real pool** (165/373, max error 78.5%); fed returns it is exact (0/373 wrong). See Known bugs.
 
 ## Known bugs / stale docs
 
@@ -200,7 +189,7 @@ why none were visible from the output.
 | ~~`news` 84% saturated~~ | **Fixed 2026-07-16 (Phase 2.7).** Query is now the quoted company name (free — already in `info`) + `when:Nd`, with a relevance filter and syndication dedupe. Gate met: AD → Array Digital Infrastructure, LINK → **0**, WRAP → Wrap Technologies, PS → Pershing Square, CARE → Carter Bankshares. Article count is now `news_buzz` (display); the composite reads sentiment instead |
 | ~~`volume` zero-inflated~~ | **Fixed 2026-07-16.** Left the composite entirely — it is attention, not 2-year risk. Emitted un-clipped as `rel_volume` (display), so the mapping destroys nothing |
 | ~~`growth` saturates at +50%~~ | **Fixed 2026-07-16 (Phase 2.2).** Sector-relative percentile — no constant to rot. DELL's 282% is just the top of its sector now |
-| **`quantstats.stats.max_drawdown` silently returns garbage on prices** | It treats input as *returns* and compounds it: KO 5y → **−54%** when the true drawdown is **−17.3%** (58.43 → 48.33, Oct 2023). It does not raise. `qs.stats.montecarlo` is separately unusable (permutes returns → std 4.9e-15, binary `goal_probability`). **quantstats is not a dependency** — `scoring/metrics.py` matches its `sharpe`/`volatility` to 0.00e+00 at 4x the speed |
+| **`quantstats.stats.max_drawdown` is wrong on prices — mechanism corrected 2026-07-17** | The old entry here said it "treats input as returns and compounds it". **It does not.** It prepends a *phantom baseline* and `_get_baseline_value` picks one by tier: `first_price > 1000` → `1e5`, `> 10` → **100.0**, else `1.0`. The baseline joins the running peak, so the drawdown is measured from a price the stock never traded at. KO 5y → **−54.40%** = `45.60/100 − 1` (true: **−17.3%**, 58.43 → 48.33 Oct 2023, hand-verified). MKL → **−98.6%** = `1395/1e5 − 1`. SPY/AAPL are *correct* only because they trade above 100. Real rule: **any stock starting above $10 that trades below $100 is wrong** — 165/373 of the pool (44%), max error 78.5%. **Fed returns it is exact: 0/373 wrong.** `qs.stats.montecarlo` is separately unusable (permutes returns → std 4.9e-15, binary `goal_probability`). quantstats is a **display-only** dependency (tearsheets); `scoring/metrics.py` stays the scoring path — it matches `sharpe`/`volatility` to 0.00e+00 at 4x the speed |
 | **Sentiment lexicon v1 is unvalidated** | Shipped and carrying 0.10 of the composite, but the plan's gate (agreement vs StockTwits' own bullish/bearish labels) has **never been run** — blocked on `streams/symbol/<T>.json`. `social_sentiment` is also missing for 360/367 rows. See `tasks/todo.md` 2.6b/2.8b/2.8c |
 | **Weights are a guess** | 0.45/0.35/0.10/0.10 is an explicit prior, not a fitted result. Phase 3.4 fits them from IC once forward data exists; at a 2-year horizon that is years away, so interim reads are directional only |
 | ~~Pool cap is random~~ | **Fixed 2026-07-16 (Phase 1.1).** Ranks by source-confirmation count desc, then ticker asc. Verified identical across 3 separate processes |
@@ -211,10 +200,10 @@ why none were visible from the output.
 | `max_st_rank = 50` | `social.py:8` — StockTwits trending returns **30**, so last place scores 4.08 instead of ~0 |
 | `quantstats.stats.montecarlo` is **unusable** | It *permutes* returns; `∏(1+r)` is permutation-invariant, so all sims share one terminal value (std 4.9e-15) and `goal_probability` is binary 0/1. Horizon is also locked to the input length |
 | StockTwits trending | Returns 403 unauthenticated — **fixable**, see the `social` row above |
-| `debug_llm.py` + `market_screener_plan.md` | Say "five signals"; production is six (`capitol_hill` added later). `llm/ranker.py` is correct |
-| `tradingagents==0.2.5` deps | Conflicts with installed `langgraph`/`langchain-anthropic`/`rich` versions. Non-blocking; `langgraph-checkpoint-sqlite` pinned to 2.0.11 to fix a hard `ImportError` |
-| `market_screener/output/pipeline_results_*.csv`, `trading_buys_*.csv` | Written by an older pipeline; nothing produces them now |
-| CLAUDE.md references `docs/MODULE_REFERENCE.md` + `graphify-out/` | Neither exists; CLAUDE.md now names PROJECT_MAP.md as the alternative, so read this file instead. `tasks/` is planned |
+| ~~`debug_llm.py` + `market_screener_plan.md` say "five signals"~~ | **Dissolved 2026-07-17** — both files deleted rather than corrected |
+| ~~`tradingagents==0.2.5` dep conflicts~~ | **Dissolved 2026-07-17** — package removed with the pipes. `tradingagents`, `langgraph`, `langchain-*` are no longer used by anything here and can be pip-uninstalled |
+| ~~`market_screener/output/pipeline_results_*.csv`~~ | **Dissolved 2026-07-17** — directory deleted |
+| CLAUDE.md references `docs/MODULE_REFERENCE.md` + `graphify-out/` | Neither exists; CLAUDE.md names PROJECT_MAP.md as the alternative, so read this file instead |
 
 ## Setup
 
@@ -222,10 +211,10 @@ why none were visible from the output.
 pip install -r market_screener/requirements.txt     # yfinance, pandas, numpy, requests, finviz, lxml,
                                                     # html5lib, crawl4ai, cloudscraper, pyarrow, tzdata
 python -m playwright install chromium               # crawl4ai needs a browser — Capitol Trades AND Reddit
-ollama serve                                        # localhost:11434 — only the second-pass pipes use it now
 ```
 
 `cloudscraper` (StockTwits' bot check) and `pyarrow` (snapshot parquet) are required, not optional.
-**quantstats is deliberately NOT a dependency** — see Known bugs.
+**No Ollama, no LLM, no API keys** — the screener is fully local and deterministic.
 
-TradingAgents and ai-hedge-fund are separate installs; see the docstring at the top of each pipe file.
+`quantstats` is display-only (dashboard tearsheets) and ranks nothing — it is **not** in the
+scoring path, and it must be fed **returns, never prices** (Gotcha 10).

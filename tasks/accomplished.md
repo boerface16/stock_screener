@@ -2,6 +2,64 @@
 
 Completed work. One compact block per task/phase: outcome + headline metric + key files.
 
+## PIVOT Phase A — LLM pipes removed (2026-07-17)
+
+**Outcome:** the screener is the whole product. Both second-pass pipes and everything downstream
+of them are gone — too slow, and TradingAgents' Ollama runs **fabricated tool output** (a
+correctness failure, not a speed one). **Ollama, `tradingagents`, and every LLM key left the
+project entirely.** Scoring is untouched: same snapshot in, same ranking out.
+
+**Headline metrics:**
+- **Determinism gate held:** two replays of snapshot `20260716_164333` → **byte-identical**
+  (16,095 bytes). #1 still **EFC at 7.8847** — identical to the pre-removal result, so nothing
+  in the scoring path moved.
+- Repo **101 MB → 11 MB tracked** (90 MB of snapshots gitignored, ~10 MB of `ta_results/` deleted).
+- Root went from 8 files + 5 output dirs to **3 docs + `market_screener/` + `tasks/`.** No code
+  at the root at all.
+- **2 gotchas and 3 known-bug rows dissolved** rather than being fixed — the code they described
+  no longer exists.
+
+**Items:**
+- **A.0** `git init` + baseline commit *before* any deletion (was not a repo — deletions were
+  unrecoverable). Snapshots gitignored: ~46 MB of binary parquet no diff can describe.
+- **A.1/A.2** Deleted `TradingAgents_pipe.py`, `HedgeFund_pipe.py`, `screener_csv.py`,
+  `market_screener/llm/`, `debug_llm.py`, and `outputs_hedge/`, `outputs_trading_agents/`,
+  `reports/`, `results/`, `output/`, `market_screener/output/`.
+- **A.3** Stripped `llm_model` / `ollama_base_url` / `thinking_mode` / `llm_candidate_multiplier`
+  from `config.py`; removed the deprecated `--no-llm` no-op.
+- **A.4** `llm_reason` → **`reason`** (CSV col 36). No LLM writes it — it is
+  `reason.build_reason`, a deterministic template. The old name was a lie.
+- **A.5** Deleted `market_screener_plan.md` (stale: "five signals", weekly horizon). **Beyond
+  plan:** also deleted `market_screener/session_handoff.md` (an old handoff written entirely
+  about the now-deleted Ollama ranker) and `outputs_TA/2026-05-15/` (a pre-overhaul CSV of the
+  same unloadable class as the 11 in `output/`).
+- **A.6** Reconciled `PROJECT_MAP.md`: rewrote the header/diagram, directory map, module
+  dictionary, Data artifacts; deleted the Pipelines section; dissolved Gotchas 1 + 8; added
+  Gotcha 10 (quantstats). Fixed a **live hazard** — the "add a signal" recipe still instructed
+  future sessions to update `screener_csv.py:SIGNAL_COLS`, a file that no longer exists.
+
+**The quantstats lesson was wrong about the mechanism — corrected.** `lessons.md` claimed
+`qs.stats.max_drawdown` "treats input as returns and compounds prices". It does not: it prepends
+a *phantom baseline* (`first_price > 10` → **100.0**; `> 1000` → `1e5`) that joins the running
+peak, so the drawdown is measured from a price the stock never traded at. KO = `45.60/100 − 1` =
+**−54.40%**, matching the observed number exactly; MKL = `1395/1e5 − 1` = **−98.6%**.
+
+| Call | Wrong by >1pp (373 pool tickers) | Max error |
+|---|---|---|
+| `qs.stats.max_drawdown(prices)` | **165 / 373 (44%)** | **78.5%** |
+| `qs.stats.max_drawdown(returns)` | **0 / 373 (0%)** | **0.0%** |
+
+**quantstats was never broken — it was called wrong.** SPY/AAPL return correct answers (they
+trade above 100), which is why a spot-check would have cleared it. Fed returns it is exact, so
+the Phase B tearsheet is safe. `metrics.py` still stays the scoring path — that decision rested
+on numpy being 4x faster and four one-liners not earning matplotlib+seaborn+scipy, which the
+correction does not touch. New rule logged in `lessons.md`: *a measurement and an explanation of
+it are two claims* — the wrong mechanism hid both the true blast radius (only $10–$100 stocks)
+and the fix (feed it returns).
+
+**Key files:** `PROJECT_MAP.md` (reconciled), `market_screener/config.py`, `screener.py`,
+`tasks/lessons.md` (2 entries: 1 corrected, 1 new).
+
 ## Phase 1 — Foundation (2026-07-16)
 
 **Outcome:** the screener is deterministic and re-scorable offline. Ingest and scoring are now

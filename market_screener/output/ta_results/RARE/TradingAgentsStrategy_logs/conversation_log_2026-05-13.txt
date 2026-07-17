@@ -1,8 +1,0 @@
-================================ Human Message =================================
-
-Continue
-================================== Ai Message ==================================
-
-The provided investment plan presents a clear assessment of the market risks surrounding RARE, with the overwhelming consensus favoring risk mitigation over capitalizing on short-term accounting optimism. The analysis correctly identifies that the recent price recovery is likely superficial, driven by whale-controlled liquidity rather than genuine market demand. Relying on balance sheet metrics to ignore the fragility of the order book depth exposes the portfolio to unnecessary volatility. Given the cash burn concerns and the potential for manipulation, holding the position contradicts the principle of preserving capital in a thin market structure. Therefore, the strategic priority is to exit immediately to avoid potential sharp drops resulting from external macroeconomic shifts or whale actions.
-
-FINAL TRANSACTION PROPOSAL: **SELL**

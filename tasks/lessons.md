@@ -152,16 +152,43 @@ inconsistent rather than merely wrong.
 
 **What happened.** The plan locked "use quantstats" for sharpe / max_drawdown / volatility.
 Checking first: `sharpe` and `volatility` matched a five-line numpy version to **0.00e+00** and
-the numpy version was **4x faster**. But `qs.stats.max_drawdown` **treats its input as returns**,
-so passing it prices makes it compound prices — KO's 5-year drawdown came back **−54%** when the
-real answer is **−17.3%** (58.43 → 48.33, Oct 2023, confirmed by hand). It does not raise; it
-returns a believable wrong number. The library's one distinctive feature, `montecarlo`, had
-already been rejected as unusable.
+the numpy version was **4x faster**. But `qs.stats.max_drawdown` returned **−54%** for KO's
+5-year drawdown when the real answer is **−17.3%** (58.43 → 48.33, Oct 2023, confirmed by hand).
+It does not raise; it returns a believable wrong number.
 
 **Rule.** A dependency has to earn its weight against the code it replaces. Four one-line
 formulas did not justify matplotlib + seaborn + scipy + tabulate. And when a library takes an
 ambiguous argument (prices vs returns), verify against a hand-computed answer before trusting it
 — "it ran and gave a number" is not verification.
+
+## The diagnosis is not the measurement — this very lesson got it wrong (2026-07-17)
+
+**What happened.** The lesson above originally explained the KO bug as: quantstats "treats its
+input as returns, so passing it prices makes it compound prices". That mechanism is **fiction**.
+Reading the source: `max_drawdown` prepends a *phantom baseline* and `_get_baseline_value` picks
+one by tier — `first_price > 1000` → `1e5`, `first_price > 10` → **100.0**, else `1.0`. The
+baseline joins the running peak, so the drawdown is measured from a price the stock never traded
+at. KO: `45.60/100 − 1` = **−54.40%**, the observed number to the digit. MKL (starts at $1410):
+`1395/1e5 − 1` = **−98.6%**.
+
+The wrong mechanism predicted the wrong blast radius. "Compounds prices" implies *everything* is
+wrong; the truth is **only stocks that start above $10 and trade below $100** are wrong — 165 of
+373 pool tickers (44%, max error 78.5%). SPY and AAPL return *correct* answers because they trade
+above 100, which is exactly the kind of spot-check that would have "confirmed" the library was
+fine. And the fix the real mechanism implies was invisible under the fake one: **fed returns, its
+documented contract, quantstats is exact — 0/373 wrong.** The library was never broken. It was
+called wrong. A whole dependency was banned on a misread.
+
+**Why it survived.** The verdict was right, so nobody re-checked the reason. One observation
+(KO) was generalised into a mechanism without reading the source, and the correct conclusion
+("don't take the dependency") made the wrong explanation feel validated.
+
+**Rule.** A measurement and an explanation of it are two claims, and being right about the first
+does not make you right about the second. If you write down *why* something fails, verify the
+why — read the source, or predict a second case and test it. An unverified mechanism silently
+sets the blast radius (who else is affected?) and the fix (is there a correct way to call it?),
+and both were wrong here. Note the irony: this failure is a direct violation of the rule stated
+immediately above it.
 
 ## Reproducibility is a precondition for tuning, not a nice-to-have
 

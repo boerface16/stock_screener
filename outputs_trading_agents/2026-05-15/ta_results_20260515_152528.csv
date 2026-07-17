@@ -1,4 +1,0 @@
-date,rank,ticker,price_usd,ta_signal,composite_score,elapsed_s,ta_reasoning
-2026-05-15,1,TSLA,425.435,ERROR,5.8645,2.8,
-2026-05-15,2,AMD,431.505,ERROR,6.6297,0.2,
-2026-05-15,3,META,614.66,ERROR,6.2852,0.2,

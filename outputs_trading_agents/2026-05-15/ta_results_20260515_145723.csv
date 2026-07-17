@@ -1,4 +1,0 @@
-date,rank,ticker,price_usd,ta_signal,composite_score,elapsed_s,ta_reasoning
-2026-05-15,1,TSLA,425.435,OVERWEIGHT,5.8645,277.1,
-2026-05-15,2,AMD,431.505,HOLD,6.6297,269.8,
-2026-05-15,3,META,614.66,HOLD,6.2852,246.6,

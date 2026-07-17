@@ -11,62 +11,19 @@ ranking path last session.
 This absorbs Phase 4 (docs) and dissolves Gotcha 1 (the screener writes `outputs_TA/`, the pipes
 read `output/`) — with no pipes, there is no second reader to disagree with.
 
-### The quantstats lesson was wrong about the mechanism — corrected 2026-07-17
+**Phase A shipped 2026-07-17 — see `tasks/accomplished.md`.** Pipes, orphans, LLM config and
+~10 MB of outputs deleted; `llm_reason` → `reason`; `PROJECT_MAP.md` reconciled; repo now under
+git. Determinism gate held (byte-identical replay, #1 still EFC 7.8847).
 
-`lessons.md` says `qs.stats.max_drawdown` "treats its input as returns, so passing it prices makes
-it compound prices". **That is not what happens.** Read the source: it prepends a *phantom
-baseline* and `_get_baseline_value` picks it by tier — `first_price > 1000` → `1e5`,
-`first_price > 10` → **100.0**, else `1.0`. The baseline joins the running peak, so the drawdown
-is measured from a price the stock never traded at.
+**quantstats verdict (measured, snapshot `20260716_164333`, 373 tickers):** the library is **not**
+broken — it was called wrong. `max_drawdown(prices)` is wrong for **165/373 (44%)**, max error
+**78.5%**, because it prepends a phantom baseline (`first_price > 10` → 100.0) that joins the
+running peak. `max_drawdown(returns)` is **exact: 0/373 wrong**. Full mechanism in
+`accomplished.md` + `lessons.md`.
 
-The real rule: **any stock starting above $10 that trades below $100 gets a fabricated drawdown.**
-
-| | |
-|---|---|
-| KO 5y, hand-computed | **−17.27%** (58.43 → 48.33 @ 2023-10-05) — `metrics.py` matches exactly |
-| KO 5y, `qs` on prices | **−54.40%** = `45.60/100 − 1` — the phantom baseline *is* the bug |
-| MKL 2.5y, `qs` on prices | **−98.6%** = `1395/1e5 − 1` — starts at $1410, so it gets the 1e5 tier |
-| SPY / AAPL | **correct** — they trade *above* 100, so the baseline never becomes the peak |
-
-Measured on the real pool (373 tickers with full 2.5y history, snapshot `20260716_164333`):
-
-| Call | Wrong by >1pp | Max error |
-|---|---|---|
-| `qs.stats.max_drawdown(prices)` | **165 / 373 (44%)** | **78.5%** |
-| `qs.stats.max_drawdown(returns)` | **0 / 373 (0%)** | **0.0%** |
-
-**quantstats is not broken — it was called wrong.** Fed returns (its documented contract) it is
-exact. So the tearsheet is safe, under one hard rule: **feed it returns, never prices.**
-
-What does *not* change: `metrics.py` stays the scoring path. Its justification never rested on the
-drawdown bug — numpy matches `sharpe`/`volatility` to 0.00e+00 and is 4x faster, and four one-line
-formulas do not earn matplotlib + seaborn + scipy + tabulate. quantstats returns as a
-**display-only** dependency, ranking nothing.
-
-### Phase A — Removal
-
-- [ ] **A.0 `git init` first.** Not a git repo, so every deletion below is unrecoverable. Commit
-      the current tree before removing anything.
-- [ ] **A.1 Delete the pipes + orphans.** `TradingAgents_pipe.py`, `HedgeFund_pipe.py`,
-      `screener_csv.py` (it exists *only* to serve the two pipes), `market_screener/llm/`,
-      `market_screener/debug_llm.py` (both already orphaned last session).
-- [ ] **A.2 Delete their outputs.** `outputs_hedge/`, `outputs_trading_agents/`, `reports/`,
-      `results/`, `output/` (11 pre-overhaul CSVs that already fail the schema guard),
-      `market_screener/output/` (~10 MB of `ta_results/` + a yfinance cache).
-- [ ] **A.3 Strip LLM config.** `config.py`: `llm_model`, `ollama_base_url`, `thinking_mode`,
-      `llm_candidate_multiplier`. `screener.py`: the deprecated `--no-llm` no-op.
-- [ ] **A.4 Rename `llm_reason` → `reason`.** No LLM writes it — it is a deterministic template
-      from `reason.build_reason`. The name is now a lie. Touches `screener.py:signal_fieldnames`
-      + the CSV header. Safe: the dashboard reads snapshots, and the guard that policed this
-      column dies in A.1.
-- [ ] **A.5 Delete `market_screener_plan.md`.** Stale — says "five signals" and assumes a weekly
-      horizon. Superseded by this file. (Kills the other half of old Phase 4.)
-- [ ] **A.6 Reconcile `PROJECT_MAP.md`.** Drop the Pipelines section, the pipe rows, Gotcha 1
-      (dissolved), Gotcha 8 (model defaults disagree — no model left), and the tradingagents /
-      ta_results rows. Add the dashboard.
-
-**Gate:** `python screener.py --replay --no-llm=REMOVED --output f1.csv` twice → byte-identical.
-Removal must not touch the determinism gate.
+**The rule Phase B depends on: feed quantstats RETURNS, never PRICES.** `metrics.py` stays the
+scoring path regardless (numpy is 4x faster and exact); quantstats is display-only and ranks
+nothing.
 
 ### Phase B — Dashboard
 
@@ -114,10 +71,6 @@ one of them is lying.
 
 ### Open
 
-- [ ] Fix the `lessons.md` quantstats entry — the mechanism is wrong (see above). The *rule*
-      ("verify against a hand-computed answer") is right, and the entry itself is proof: it was
-      written from one observation without reading the source, and got the cause wrong while
-      getting the verdict right.
 - [ ] Should `screener.py` write the full scored pool and let `--n` cap only the printed table?
       The CSV being a top-N artifact is why it is useless as a dashboard source. Not blocking —
       the dashboard reads snapshots.

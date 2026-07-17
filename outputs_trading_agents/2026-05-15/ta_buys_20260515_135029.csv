@@ -1,2 +1,0 @@
-rank,ticker,composite_score,momentum,volume,news,social,fundamentals,capitol_hill,price_usd,screener_reason,ta_signal,ta_reasoning
-2,AMD,6.6297,7.7186,0.0,10.0,6.0,6.573,8.0,431.505,Composite score ranking (LLM output malformed),BUY,

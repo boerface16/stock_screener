@@ -9,12 +9,6 @@ class Config:
     output_dir: str = "outputs_TA"
     output_filename: str = ""  # auto-generated if empty
 
-    # LLM
-    llm_model: str = "gemma4:latest"
-    ollama_base_url: str = "http://localhost:11434"
-    thinking_mode: bool = True
-    llm_candidate_multiplier: int = 2
-
     # Category weights (must sum to 1.0), split evenly within each category.
     # Attention is DISCOVERY ONLY, weight 0.00: Yahoo movers / StockTwits / Reddit / Finviz
     # already define the pool, so weighting them again counts them twice. Everything they

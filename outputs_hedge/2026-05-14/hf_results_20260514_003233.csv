@@ -1,4 +1,0 @@
-date,rank,ticker,price_usd,composite_score,hf_action,hf_quantity,elapsed_s,hf_reasoning
-2026-05-14,1,DXYZ,53.4,7.8071,hold,0,3161.3,No valid trade available
-2026-05-14,2,WEST,8.65,7.4706,hold,0,3161.3,No valid trade available
-2026-05-14,3,PACS,41.01,7.2486,hold,0,3161.3,No valid trade available
