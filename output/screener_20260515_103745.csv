@@ -1,0 +1,51 @@
+rank,ticker,composite_score,momentum,volume,news,social,fundamentals,capitol_hill,price_usd,llm_reason,run_timestamp
+1,F,6.9661,10.0,0.0,10.0,4.8,6.974,8.0,13.5989,High composite score driven by perfect news and strong momentum signals.,20260515_103745
+2,PM,6.7105,10.0,0.0,10.0,3.6,4.47,10.0,191.51,"Excellent momentum and news signals, indicating strong immediate catalyst interest.",20260515_103745
+3,POET,6.6625,10.0,0.0,10.0,6.0,6.75,5.0,18.2972,Strong momentum and news combined with solid social and fundamental scores.,20260515_103745
+4,LLY,6.5683,8.1338,0.0,10.0,4.8,7.31,7.5,1011.08,Exceptional news catalyst combined with high fundamental strength and strong momentum.,20260515_103745
+5,ONDS,6.5413,9.3938,0.0,10.0,6.0,6.75,5.0,11.13,High news and social conviction supporting a strong composite score.,20260515_103745
+6,CME,6.5232,10.0,0.0,10.0,6.0,5.821,5.0,301.62,Perfect news score and high momentum suggest strong institutional interest.,20260515_103745
+7,RKLB,6.406,8.7176,0.0,10.0,6.0,6.75,5.0,126.025,Strong news and social signals support a high composite score despite moderate momentum.,20260515_103745
+8,NEXT,6.4,10.0,0.0,10.0,6.0,5.0,5.0,9.18,Perfect news and social signals provide a strong foundation for conviction.,20260515_103745
+9,META,6.3373,5.3861,0.0,10.0,6.0,7.7337,8.0,614.53,High fundamental score combined with perfect news and social signals.,20260515_103745
+10,COST,6.2961,8.8465,0.0,10.0,6.0,5.845,5.0,1046.47,Excellent news and social signals paired with a solid fundamental score.,20260515_103745
+11,LUNR,6.2797,8.0862,0.0,10.0,6.0,6.75,5.0,34.61,Strong news and social signals support a high composite score.,20260515_103745
+12,VRT,6.2781,7.363,0.0,10.0,2.4,6.3035,10.0,367.61,High news score and strong momentum suggest a powerful catalyst play.,20260515_103745
+13,RDW,6.2728,8.9517,0.0,10.0,4.8,6.75,5.0,13.865,Strong news and fundamental scores provide a solid base for conviction.,20260515_103745
+14,ICE,6.1615,4.8579,0.0,10.0,6.0,7.2663,8.0,155.51,"High news and fundamental scores indicate stable, news-driven interest.",20260515_103745
+15,SYK,6.1606,10.0,0.0,10.0,0.0,4.404,10.0,309.555,"Perfect news and momentum signals suggest a powerful, albeit socially unconfirmed, catalyst.",20260515_103745
+16,GEN,6.1578,6.185,0.0,10.0,6.0,8.4722,5.0,23.265,High fundamental score combined with perfect news and social signals.,20260515_103745
+17,BOT,6.15,5.0,5.0,10.0,6.0,5.0,5.0,24.255,Perfect news and social signals provide a solid foundation for conviction.,20260515_103745
+18,HALO,6.1204,7.7784,0.0,10.0,4.8,7.2979,5.0,67.3,Strong news and fundamental scores support a high composite score.,20260515_103745
+19,HOOD,6.1177,5.3785,0.0,10.0,6.0,4.2799,10.0,78.09,High news and social signals suggest strong retail interest.,20260515_103745
+20,MSFT,6.0741,6.066,0.0,10.0,6.0,6.0725,7.0,422.44,Excellent news and social signals combined with a decent fundamental score.,20260515_103745
+21,WDC,6.0206,4.7179,0.0,10.0,4.8,7.7137,8.0,474.87,"High news and fundamental scores suggest stable, news-driven interest.",20260515_103745
+22,BEAT,5.9977,7.9884,0.0,10.0,6.0,5.0,5.0,1.0099,"Perfect news and social signals provide a strong, low-priced catalyst play.",20260515_103745
+23,VRTX,5.9561,7.3771,0.0,10.0,0.0,6.5377,10.0,446.02,High news score and strong momentum suggest a significant biotech catalyst.,20260515_103745
+24,AMP,5.9496,6.4075,0.0,10.0,6.0,8.2875,3.5,475.43,Strong news and fundamental scores support a high conviction level.,20260515_103745
+25,PUMP,5.9493,8.3949,0.0,10.0,6.0,4.1355,5.0,17.185,High news and social signals suggest strong speculative interest.,20260515_103745
+26,AAPL,5.8893,6.9837,0.0,10.0,6.0,5.1173,5.5,300.3,"Perfect news and social signals provide a reliable, blue-chip catalyst play.",20260515_103745
+27,COHR,5.8759,8.4164,0.0,10.0,2.4,4.2175,8.0,382.27,"High news and momentum signals suggest a strong, technology-driven catalyst.",20260515_103745
+28,SLS,5.86,10.0,0.0,10.0,2.4,5.0,5.0,7.3699,"Perfect news and momentum signals indicate strong, immediate catalyst interest.",20260515_103745
+29,POST,5.8467,5.4871,0.0,10.0,6.0,7.3284,5.0,102.755,"Strong news and fundamental scores suggest reliable, long-term catalyst support.",20260515_103745
+30,DOW,5.8447,7.3836,0.0,10.0,6.0,4.7865,5.0,39.14,"Solid news and social signals provide a stable, index-backed catalyst.",20260515_103745
+31,SCHW,5.8067,7.6662,0.0,10.0,0.0,7.1561,8.0,92.145,High news score and strong fundamental scores suggest reliable financial sector interest.,20260515_103745
+32,WELL,5.7825,5.7194,0.0,10.0,6.0,6.5905,5.0,215.66,Perfect news and social signals support a high conviction level in the healthcare sector.,20260515_103745
+33,PRE,5.76,5.4876,0.0,10.0,6.0,6.75,5.0,16.495,"Strong news and social signals suggest reliable, consumer-focused catalyst support.",20260515_103745
+34,APPS,5.7274,6.309,0.0,10.0,6.0,5.4375,5.0,4.21,"Perfect news and social signals provide a reliable, tech-focused catalyst play.",20260515_103745
+35,MICC,5.7193,9.5649,2.9203,10.0,0.0,4.1219,5.0,16.685,"Perfect news and momentum signals suggest a strong, immediate catalyst play.",20260515_103745
+36,SO,5.6871,6.4601,0.0,10.0,6.0,4.967,5.0,93.06,Perfect news and social signals provide a solid foundation for conviction.,20260515_103745
+37,UMAC,5.6851,7.813,0.0,10.0,2.4,6.75,5.0,15.72,Strong news and fundamental scores support a high conviction level.,20260515_103745
+38,LTH,5.6786,8.4095,0.0,10.0,2.4,5.9113,5.0,34.49,"High news and momentum signals suggest a strong, cyclical catalyst.",20260515_103745
+39,NET,5.6477,5.3593,0.0,10.0,6.0,6.1725,5.0,198.95,"Perfect news and social signals indicate strong, reliable tech interest.",20260515_103745
+40,AMZN,5.6308,2.8043,0.0,10.0,6.0,6.4665,8.0,263.56,Perfect news and social signals provide a reliable e-commerce catalyst.,20260515_103745
+41,CRK,5.6299,7.3517,0.0,10.0,2.4,6.997,5.0,15.12,Strong news and fundamental scores suggest reliable consumer spending interest.,20260515_103745
+42,FAST,5.6147,4.1827,0.0,10.0,6.0,4.5212,8.0,43.63,"Perfect news and social signals provide a solid, consumer-focused catalyst.",20260515_103745
+43,LIN,5.5909,8.4121,0.0,10.0,0.0,4.7232,8.0,509.59,"High news and momentum signals suggest strong, established business interest.",20260515_103745
+44,XOM,5.5628,9.9274,0.0,10.0,2.4,3.1152,5.0,154.975,Perfect news and momentum signals suggest a strong energy sector catalyst.,20260515_103745
+45,LNG,5.5574,6.277,0.0,10.0,6.0,4.347,5.0,244.7199,Perfect news and social signals provide a reliable energy commodity catalyst.,20260515_103745
+46,LMT,5.5552,6.3522,0.0,10.0,6.0,4.2317,5.0,516.86,Perfect news and social signals suggest reliable defense/aerospace sector interest.,20260515_103745
+47,CRM,5.5544,2.8603,0.0,10.0,6.0,5.8819,8.0,173.26,"Perfect news and social signals provide a solid, SaaS-driven catalyst.",20260515_103745
+48,BUD,5.5429,5.9024,0.0,10.0,4.8,5.9493,5.0,80.92,Perfect news and social signals suggest reliable consumer goods interest.,20260515_103745
+49,FTNT,5.5376,7.7847,0.0,10.0,0.0,5.2045,8.0,121.98,Perfect news and momentum signals suggest strong cybersecurity catalyst interest.,20260515_103745
+50,KO,5.5367,8.7964,0.0,10.0,1.2,5.6492,5.0,81.04,"Perfect news and momentum signals provide a stable, defensive consumer catalyst.",20260515_103745

@@ -1,0 +1,49 @@
+[
+  {
+    "type": "human",
+    "data": {
+      "content": "Continue",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": "b3850918-11af-44f0-8513-e575b60b7d97"
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "Based on the comprehensive analysis provided, it is clear that the current market environment for FCX is not supported by valid fundamental data, technical signals, or news events, as the input is identified as a placeholder or test input. Adhering to the core principles of risk management and capital preservation established in the analysis, initiating a trade in the absence of real information would be speculative and contrary to fiduciary duty. Past lessons dictate that we avoid overtrading when signals are ambiguous or non-existent. Consequently, the most strategic and prudent action is to withhold capital from exposure on this asset until a genuine data feed is provided. Maintaining neutrality now protects the portfolio from making decisions on thin air.\n\nFINAL TRANSACTION PROPOSAL: **HOLD**",
+      "additional_kwargs": {
+        "refusal": null
+      },
+      "response_metadata": {
+        "token_usage": {
+          "completion_tokens": 1476,
+          "prompt_tokens": 568,
+          "total_tokens": 2044,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": null
+        },
+        "model_provider": "openai",
+        "model_name": "qwen3.5:9b",
+        "system_fingerprint": "fp_ollama",
+        "id": "chatcmpl-607",
+        "finish_reason": "stop",
+        "logprobs": null
+      },
+      "type": "ai",
+      "name": null,
+      "id": "lc_run--019e23db-8dc4-7d32-a6ad-80da83894106-0",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": {
+        "input_tokens": 568,
+        "output_tokens": 1476,
+        "total_tokens": 2044,
+        "input_token_details": {},
+        "output_token_details": {}
+      }
+    }
+  }
+]

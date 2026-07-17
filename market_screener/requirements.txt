@@ -1,0 +1,11 @@
+yfinance>=0.2.40
+pandas>=2.0.0
+numpy>=1.26.0
+requests>=2.31.0
+finviz>=1.4.4
+lxml>=5.0.0
+html5lib>=1.1
+crawl4ai>=0.4.0
+cloudscraper>=1.2.71
+pyarrow>=15.0.0
+tzdata>=2024.1

@@ -1,0 +1,49 @@
+[
+  {
+    "type": "human",
+    "data": {
+      "content": "Continue",
+      "additional_kwargs": {},
+      "response_metadata": {},
+      "type": "human",
+      "name": null,
+      "id": "1e15b712-c069-40e8-ad0a-ebcd2a083291"
+    }
+  },
+  {
+    "type": "ai",
+    "data": {
+      "content": "",
+      "additional_kwargs": {
+        "refusal": null
+      },
+      "response_metadata": {
+        "token_usage": {
+          "completion_tokens": 10523,
+          "prompt_tokens": 862,
+          "total_tokens": 11385,
+          "completion_tokens_details": null,
+          "prompt_tokens_details": null
+        },
+        "model_provider": "openai",
+        "model_name": "qwen3.5:9b",
+        "system_fingerprint": "fp_ollama",
+        "id": "chatcmpl-858",
+        "finish_reason": "stop",
+        "logprobs": null
+      },
+      "type": "ai",
+      "name": null,
+      "id": "lc_run--019e227b-42b8-7fc1-862f-834afce2ba5a-0",
+      "tool_calls": [],
+      "invalid_tool_calls": [],
+      "usage_metadata": {
+        "input_tokens": 862,
+        "output_tokens": 10523,
+        "total_tokens": 11385,
+        "input_token_details": {},
+        "output_token_details": {}
+      }
+    }
+  }
+]

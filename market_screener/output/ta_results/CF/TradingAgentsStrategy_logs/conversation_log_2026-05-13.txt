@@ -1,0 +1,10 @@
+================================ Human Message =================================
+
+Continue
+================================== Ai Message ==================================
+
+Based on the comprehensive analysis provided, the critical distinction between cash flow generation and actual liquidity must guide this decision. While the company demonstrates the potential to generate significant Free Cash Flow (FCF), this metric is being masked by a deeply negative Net Cash position of -311m. In trading, operating cash flow does not guarantee the ability to meet immediate obligations, especially when the balance sheet indicates a liquidity shortfall.
+
+The lesson "Don't be fooled by the 'Cash-Generating Machine'" reinforces that high FCF combined with negative net cash often signals a precarious situation where debt financing is being used to mask operational or funding inefficiencies. Since the narrative explicitly identifies a liquidity crunch risk and the math (positive flow sum) contradicts the reality of the balance sheet (negative liquidity), the risk-reward profile favors de-risking. Relying on future cash flow projections is insufficient to cover immediate debt or working capital needs when the net cash is in the red. Therefore, protecting capital integrity by exiting or avoiding this position is the prudent strategy.
+
+FINAL TRANSACTION PROPOSAL: **SELL**

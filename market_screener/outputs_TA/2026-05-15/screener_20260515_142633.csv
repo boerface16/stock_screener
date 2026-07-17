@@ -1,0 +1,21 @@
+rank,ticker,composite_score,momentum,volume,news,social,fundamentals,capitol_hill,price_usd,llm_reason,run_timestamp
+1,ONDS,7.9254,10.0,8.9954,10.0,6.0,6.174,5.0,10.755,"Exceptional composite score driven by perfect momentum and news signals, complemented by high volume and social activity.",20260515_142633
+2,F,7.6004,10.0,6.6288,10.0,2.4,6.974,8.0,13.46,"High momentum and news scores anchor this stock, making it a strong candidate despite lower social engagement.",20260515_142633
+3,WRAP,7.5855,8.5402,9.4681,10.0,4.8,6.582,5.0,1.525,Excellent news catalyst combined with high volume and solid momentum provides strong conviction.,20260515_142633
+4,DELL,6.6748,7.2425,0.0,10.0,6.0,7.5088,8.0,245.78,"Strong fundamentals and high news coverage are balanced by good social sentiment, indicating institutional interest.",20260515_142633
+5,AMD,6.6297,7.7186,0.0,10.0,6.0,6.573,8.0,432.2001,"High news and social scores, coupled with decent fundamentals, suggest positive market attention.",20260515_142633
+6,AD,6.4302,6.7037,0.0,10.0,6.0,9.5965,5.0,50.38,Outstanding fundamentals (9.6) combined with high news and social scores creates a highly attractive profile.,20260515_142633
+7,IBKR,6.3956,7.6715,0.0,10.0,6.0,5.0752,8.0,87.43,High news coverage and strong social sentiment suggest underlying value despite zero reported volume.,20260515_142633
+8,VG,6.3938,7.4808,0.0,10.0,6.0,8.3177,5.0,14.05,"Strong fundamentals (8.3) and high news/social scores provide a stable, high-conviction investment case.",20260515_142633
+9,UMAC,6.3774,9.1895,2.7801,10.0,2.4,6.75,5.0,15.56,"High momentum and news scores, supported by decent volume and fundamentals, suggest upward trajectory.",20260515_142633
+10,SUN,6.3472,8.9656,0.8479,10.0,2.4,8.7795,5.0,71.095,Excellent fundamentals (8.8) paired with high momentum and news scores indicates strong underlying value.,20260515_142633
+11,MET,6.3451,5.9349,0.0,10.0,6.0,7.0539,8.0,79.1725,Balanced signals with good social sentiment and decent fundamentals make this a reliable pick.,20260515_142633
+12,MU,6.3077,10.0,0.0,10.0,6.0,7.3846,2.0,738.94,"High news and social scores, combined with solid fundamentals, point to continued sector strength.",20260515_142633
+13,META,6.2833,5.1262,0.0,10.0,6.0,7.7206,8.0,619.35,Strong fundamentals (7.7) and high social sentiment suggest continued market relevance.,20260515_142633
+14,MRNA,6.2762,5.8186,0.0,10.0,6.0,6.75,8.0,48.76,Good social sentiment and decent fundamentals provide a solid foundation for potential growth.,20260515_142633
+15,APP,6.1406,4.3769,0.7684,10.0,6.0,7.0,8.0,501.98,High social score and decent fundamentals suggest positive community interest and stability.,20260515_142633
+16,ICE,6.156,4.8217,0.0,10.0,6.0,7.2778,8.0,154.46,"High news coverage and good social sentiment, coupled with stable fundamentals, offer reliable upside.",20260515_142633
+17,WELL,6.0966,7.2835,0.0087,10.0,6.0,6.5905,5.0,214.405,"Solid fundamentals and good social sentiment provide a balanced, low-risk profile.",20260515_142633
+18,AMP,6.0528,6.9109,0.0,10.0,6.0,8.304,3.5,471.0,Excellent fundamentals (8.3) combined with high social sentiment suggests strong institutional backing.,20260515_142633
+19,BOT,6.15,5.0,5.0,10.0,6.0,5.0,5.0,35.05,Decent volume and high social/news scores suggest increasing retail and institutional interest.,20260515_142633
+20,AAPL,6.1041,8.0637,0.0,10.0,6.0,5.1089,5.5,301.2144,"Despite zero volume, the high news and social scores on a blue-chip name maintain high overall conviction.",20260515_142633

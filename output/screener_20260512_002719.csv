@@ -1,0 +1,21 @@
+rank,ticker,composite_score,momentum,volume,news,social,fundamentals,capitol_hill,price_usd,llm_reason,run_timestamp
+1,WYFI,7.9825,10.0,10.0,10.0,4.8,6.75,5.0,26.98,Composite score ranking (LLM output malformed),20260512_002719
+2,WEST,7.6988,10.0,8.3049,10.0,4.8,6.554,5.0,8.75,Composite score ranking (LLM output malformed),20260512_002719
+3,INOD,7.3,10.0,10.0,10.0,0.0,7.0,5.0,103.83,Composite score ranking (LLM output malformed),20260512_002719
+4,RKLB,7.1138,10.0,3.0087,10.0,6.0,6.75,5.0,117.35,Composite score ranking (LLM output malformed),20260512_002719
+5,LQDA,7.0375,10.0,10.0,10.0,0.0,5.25,5.0,53.13,Composite score ranking (LLM output malformed),20260512_002719
+6,P,6.9397,10.0,9.0981,10.0,0.0,3.5,7.0,87.34,Composite score ranking (LLM output malformed),20260512_002719
+7,AMD,6.936,10.0,0.0,10.0,6.0,6.573,7.0,458.79,Composite score ranking (LLM output malformed),20260512_002719
+8,TWO,6.7861,6.088,6.0398,10.0,6.0,6.75,5.0,12.62,Composite score ranking (LLM output malformed),20260512_002719
+9,NSIT,6.7358,10.0,3.8057,10.0,0.0,7.4329,7.0,88.23,Composite score ranking (LLM output malformed),20260512_002719
+10,CRCL,6.7258,6.7917,6.5496,10.0,2.4,8.5,5.0,131.76,Composite score ranking (LLM output malformed),20260512_002719
+11,WDC,6.7109,9.128,0.7094,10.0,6.0,7.5259,5.0,515.83,Composite score ranking (LLM output malformed),20260512_002719
+12,HUT,6.6984,10.0,0.2395,10.0,6.0,6.75,5.0,102.19,Composite score ranking (LLM output malformed),20260512_002719
+13,TSLA,6.6863,10.0,0.5654,10.0,6.0,4.3435,7.0,445.0,Composite score ranking (LLM output malformed),20260512_002719
+14,POET,6.679,10.0,1.31,10.0,4.8,6.75,5.0,13.9,Composite score ranking (LLM output malformed),20260512_002719
+15,GLW,6.662,10.0,1.9966,10.0,4.8,5.95,5.0,207.39,Composite score ranking (LLM output malformed),20260512_002719
+16,FORM,6.6058,8.5799,1.8957,10.0,6.0,6.37,5.0,151.4,Composite score ranking (LLM output malformed),20260512_002719
+17,PANW,6.6056,10.0,0.9993,10.0,3.6,5.7715,7.0,213.66,Composite score ranking (LLM output malformed),20260512_002719
+18,AG,6.603,10.0,2.3035,10.0,4.8,5.25,5.0,23.58,Composite score ranking (LLM output malformed),20260512_002719
+19,B,6.5904,10.0,2.717,10.0,0.0,9.5525,5.0,47.0,Composite score ranking (LLM output malformed),20260512_002719
+20,PLUG,6.5501,7.58,3.6112,10.0,6.0,5.616,5.0,3.52,Composite score ranking (LLM output malformed),20260512_002719

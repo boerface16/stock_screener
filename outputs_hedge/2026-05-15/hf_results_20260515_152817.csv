@@ -1,0 +1,4 @@
+date,rank,ticker,price_usd,composite_score,hf_action,hf_quantity,elapsed_s,hf_reasoning
+2026-05-15,1,TSLA,425.435,5.8645,hold,0,951.1,No valid trade available
+2026-05-15,2,AMD,431.505,6.6297,hold,0,951.1,No valid trade available
+2026-05-15,3,META,614.66,6.2852,hold,0,951.1,No valid trade available
